@@ -1,0 +1,7 @@
+<field> <type>
+
+type   string
+date string  
+count int
+price_czk decimal
+desc string
