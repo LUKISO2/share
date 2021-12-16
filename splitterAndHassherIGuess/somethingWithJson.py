@@ -126,4 +126,4 @@ def editMe(fileToBeOpened=None):
         finalFile.write(item + "\n")
 
 if __name__ == "__main__":
-    editMe()
+    editMe("//nasjh/Shared/DEVELOP/bd_epc_pgw.load.gz")
