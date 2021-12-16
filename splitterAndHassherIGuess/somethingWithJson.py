@@ -5,10 +5,10 @@ import re
 import os.path
 
 def editMe(fileToBeOpened=None):
-    if fileToBeOpened is None:
-        try:
-            fileToBeOpened = sys.argv[1]
-        except:
+    try:
+        fileToBeOpened = sys.argv[1]
+    except:
+        if fileToBeOpened is None:
             print("No file specified")
             sys.exit()
     finalResult = []
