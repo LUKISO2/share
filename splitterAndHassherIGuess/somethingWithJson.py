@@ -4,7 +4,13 @@ import json
 import re
 import os.path
 
-def editMe(fileToBeOpened=sys.argv[1]):
+def editMe(fileToBeOpened=None):
+    if fileToBeOpened is None:
+        try:
+            fileToBeOpened = sys.argv[1]
+        except:
+            print("No file specified")
+            sys.exit()
     finalResult = []
 
     if os.path.isfile(fileToBeOpened):
