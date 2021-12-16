@@ -100,11 +100,14 @@ def editMe(fileToBeOpened=None):
             mainJson["c_party_location"] = innerValue[10]
 
         try:
-            mainJson["servedIMSI"]["IMSI"] = hasher(mainJson["servedIMSI"]["IMSI"])
+            if isATelNumber(mainJson["servedMSISDN"]["number"]) == True:
+                mainJson["servedMSISDN"]["number"] = hasher(mainJson["servedMSISDN"]["number"])
         except:
             pass
         try:
-            mainJson["servedMSISDN"]["number"] = hasher(mainJson["servedMSISDN"]["number"])
+            x = int(mainJson["servedIMSI"]["IMSI"])
+            if len(str(mainJson["servedIMSI"]["IMSI"])) == 15 or len(str(mainJson["servedIMSI"]["IMSI"])) == 16:
+                mainJson["servedIMSI"]["IMSI"] = hasher(mainJson["servedIMSI"]["IMSI"])
         except:
             pass
         try:
