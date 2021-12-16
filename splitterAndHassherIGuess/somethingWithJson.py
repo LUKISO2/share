@@ -12,13 +12,16 @@ def editMe(fileToBeOpened=None):
             print("No file specified")
             sys.exit()
     finalResult = []
-
-    if os.path.isfile(fileToBeOpened):
-        gunzip = gzip.open(fileToBeOpened, "rb")
-        contents = gunzip.read()
-        gunzip.close()
-    else:
-        print("File does not exist")
+    try:
+        if os.path.isfile(fileToBeOpened):
+            gunzip = gzip.open(fileToBeOpened, "rb")
+            contents = gunzip.read()
+            gunzip.close()
+        else:
+            print("File does not exist")
+            sys.exit()
+    except:
+        print("File isn't gzipped")
         sys.exit()
 
     contents = contents.decode("utf-8")
