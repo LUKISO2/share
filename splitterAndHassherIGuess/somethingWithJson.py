@@ -5,6 +5,7 @@ import re
 import os.path
 
 def editMe(fileToBeOpened=None):
+    # Checking for arguments
     try:
         fileToBeOpened = sys.argv[1]
     except:
@@ -12,6 +13,8 @@ def editMe(fileToBeOpened=None):
             print("No file specified")
             sys.exit()
     finalResult = []
+
+    # Open the file
     try:
         if os.path.isfile(fileToBeOpened):
             gunzip = gzip.open(fileToBeOpened, "rb")
@@ -24,6 +27,7 @@ def editMe(fileToBeOpened=None):
         print("File isn't gzipped")
         sys.exit()
 
+    # Decode the file
     contents = contents.decode("utf-8")
     values = contents.split("\n")
     try:
@@ -32,6 +36,7 @@ def editMe(fileToBeOpened=None):
         print("File is empty")
         sys.exit()
 
+    # Hasher for phone numbers
     def hasher(value):
         hashing = []
         strValue = str(value)
@@ -47,6 +52,7 @@ def editMe(fileToBeOpened=None):
         final = leaveBehind + hashed
         return final
 
+    # Hasher for text with at character
     def atHasher(value):
         preHash = value.split("@")
         if len(preHash) == 1:
@@ -59,16 +65,19 @@ def editMe(fileToBeOpened=None):
         final = hashed + "@" + preHash[1]
         return final
 
+    # Telephojne number checker
     def isATelNumber(value):
         if re.match("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{3})(?: *x(\d+))?\s*$", value):
             return True
         else:
             return False
 
+    # Main loop
     for value in values:
         innerValue = value.split("|")
         mainJson = json.loads(innerValue[11])
 
+        # Head to json
         if innerValue[0] != "":
             mainJson["ne_type"] = innerValue[0]
         if innerValue[1] != "":
@@ -102,6 +111,7 @@ def editMe(fileToBeOpened=None):
         if innerValue[10] != "":
             mainJson["c_party_location"] = innerValue[10]
 
+        # Hasing in json values
         try:
             if isATelNumber(mainJson["servedMSISDN"]["number"]) == True:
                 mainJson["servedMSISDN"]["number"] = hasher(mainJson["servedMSISDN"]["number"])
@@ -124,6 +134,7 @@ def editMe(fileToBeOpened=None):
 
         finalResult.append(json.dumps(mainJson))
 
+    # Write to file
     rawFileName = os.path.basename(fileToBeOpened)
     rawFileName = rawFileName.split(".")
     finalName = rawFileName[0] + "_hashed.json"
