@@ -67,10 +67,7 @@ def editMe(fileToBeOpened=None):
 
     # Telephojne number checker
     def isATelNumber(value):
-        if re.match("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{3})(?: *x(\d+))?\s*$", value):
-            return True
-        else:
-            return False
+        return True if re.match("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{3})(?: *x(\d+))?\s*$", value) else False
 
     # Main loop
     for value in values:
