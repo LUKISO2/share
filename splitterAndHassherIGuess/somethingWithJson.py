@@ -6,13 +6,26 @@ import os.path
 
 def editMe(fileToBeOpened=None):
     # Checking for arguments
-    try:
-        fileToBeOpened = sys.argv[1]
-    except:
-        if fileToBeOpened is None:
-            print("No file specified")
+    if fileToBeOpened == None:
+        if sys.argv[0] == sys.argv[-1]:
+            print("No file specified!")
             sys.exit()
+        else:
+            fileToBeOpened = sys.argv[-1]
     finalResult = []
+
+    if "-o" in sys.argv:
+        try:
+            outputPath = sys.argv[sys.argv.index("-o") + 1]
+        except:
+            print("ERROR - Invalid output path!")
+            sys.exit()
+        if not os.path.isdir(outputPath):
+            print("ERROR - Output directory does not exist!")
+            sys.exit()
+        changeOutputPath = True
+    else:
+        changeOutputPath = False
 
     # Open the file
     try:
@@ -68,6 +81,15 @@ def editMe(fileToBeOpened=None):
     # Telephojne number checker
     def isATelNumber(value):
         return True if re.match("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{3})(?: *x(\d+))?\s*$", value) else False
+    
+    def getOutputPath(changeOutputPath=changeOutputPath):
+        rawFileName = os.path.basename(fileToBeOpened)
+        rawFileName = rawFileName.split(".")
+        finalName = rawFileName[0] + "_hashed.json.gz"
+        if changeOutputPath == False:
+            return os.path.join(os.path.dirname(fileToBeOpened), finalName)
+        elif changeOutputPath == True:
+            return os.path.join(outputPath, finalName)
 
     # Main loop
     for value in values:
@@ -132,12 +154,10 @@ def editMe(fileToBeOpened=None):
         finalResult.append(json.dumps(mainJson))
 
     # Write to file
-    rawFileName = os.path.basename(fileToBeOpened)
-    rawFileName = rawFileName.split(".")
-    finalName = rawFileName[0] + "_hashed.json"
-    finalFile = open(os.path.abspath(fileToBeOpened) + finalName, "w")
+    finalFile = gzip.open(getOutputPath(), "wb")
     for item in finalResult:
-        finalFile.write(item + "\n")
+        finalFile.write(item.encode() + b"\n")
+    finalFile.close()
 
 if __name__ == "__main__":
-    editMe("//nasjh/Shared/DEVELOP/bd_epc_pgw.load.gz")
+    editMe()
