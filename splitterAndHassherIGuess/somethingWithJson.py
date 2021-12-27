@@ -82,6 +82,7 @@ def editMe(fileToBeOpened=None):
     def isATelNumber(value):
         return True if re.match("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{3})(?: *x(\d+))?\s*$", value) else False
     
+    # Used for determining output path
     def getOutputPath(changeOutputPath=changeOutputPath):
         rawFileName = os.path.basename(fileToBeOpened)
         rawFileName = rawFileName.split(".")
