@@ -49,6 +49,10 @@ def editMe(fileToBeOpened=None):
         print("File is empty")
         sys.exit()
 
+    # Telephojne number checker
+    def isATelNumber(value):
+        return True if re.match("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{3})(?: *x(\d+))?\s*$", value) else False
+
     # Hasher for phone numbers
     def hasher(value):
         hashing = []
@@ -65,9 +69,18 @@ def editMe(fileToBeOpened=None):
         final = leaveBehind + hashed
         return final
 
-    # Telephojne number checker
-    def isATelNumber(value):
-        return True if re.match("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{3})(?: *x(\d+))?\s*$", value) else False
+    def chasher(value):
+        strValue = str(value)
+        if re.match("^\d+$", strValue[len(strValue)-6:]):
+            return hasher(strValue)
+        else:
+            return value
+
+    def thasher(value):
+        if isATelNumber(value):
+            return hasher(value)
+        else:
+            return value
     
     # Used for determining output path
     def getOutputPath(changeOutputPath=changeOutputPath):
@@ -103,10 +116,7 @@ def editMe(fileToBeOpened=None):
         if innerValue[1] != "":
             mainJson["ne_id"] = innerValue[1]
         if innerValue[2] != "":
-            if isATelNumber(innerValue[2]) == True:
-                mainJson["a_party_msisdn"] = hasher(innerValue[2])
-            else:
-                mainJson["a_party_msisdn"] = innerValue[2]
+            mainJson["a_party_msisdn"] = thasher(innerValue[2])
         if innerValue[3] != "":
             try:
                 innerValue[3] = int(innerValue[3])
@@ -119,10 +129,7 @@ def editMe(fileToBeOpened=None):
         if innerValue[4] != "":
             mainJson["a_party_location"] = innerValue[4]
         if innerValue[5] != "":
-            if isATelNumber(innerValue[5]) == True:
-                mainJson["b_party_msisdn"] = hasher(innerValue[5])
-            else:
-                mainJson["b_party_msisdn"] = innerValue[5]
+            mainJson["b_party_msisdn"] = thasher(innerValue[5])
         if innerValue[6] != "":
             mainJson["b_party_location"] = innerValue[6]
         if innerValue[7] != "":
@@ -130,30 +137,21 @@ def editMe(fileToBeOpened=None):
         if innerValue[8] != "":
             mainJson["timestamp_offset"] = innerValue[8]
         if innerValue[9] != "":
-            if isATelNumber(innerValue[9]) == True:
-                mainJson["c_party_msisdn"] = hasher(innerValue[9])
-            else:
-                mainJson["c_party_msisdn"] = innerValue[9]
+            mainJson["c_party_msisdn"] = thasher(innerValue[9])
         if innerValue[10] != "":
             mainJson["c_party_location"] = innerValue[10]
 
         # Hasing in json values
-        #"_called_imei"
-        #"_called_imeisv"
-        #"_calling_imei"
-        #"_calling_imeisv"
-        #"_forwarding_imei"
-        #"_forwarding_imeisv"
         try:
             mainJson[f"{prefix}_called_imsi"] = hasher(mainJson[f"{prefix}_called_imsi"])
         except:
             pass
         try:
-            mainJson[f"{prefix}_called_number"] = hasher(mainJson[f"{prefix}_called_number"])
+            mainJson[f"{prefix}_called_number"] = chasher(mainJson[f"{prefix}_called_number"])
         except:
             pass
         try:
-            mainJson[f"{prefix}_called_subs_last_ex_id"] = hasher(mainJson[f"{prefix}_called_subs_last_ex_id"])
+            mainJson[f"{prefix}_called_subs_last_ex_id"] = chasher(mainJson[f"{prefix}_called_subs_last_ex_id"])
         except:
             pass
         try:
@@ -161,27 +159,27 @@ def editMe(fileToBeOpened=None):
         except:
             pass
         try:
-            mainJson[f"{prefix}_calling_number"] = hasher(mainJson[f"{prefix}_calling_number"])
+            mainJson[f"{prefix}_calling_number"] = chasher(mainJson[f"{prefix}_calling_number"])
         except:
             pass
         try:
-            mainJson[f"{prefix}_calling_subs_last_ex_id"] = hasher(mainJson[f"{prefix}_calling_subs_last_ex_id"])
+            mainJson[f"{prefix}_calling_subs_last_ex_id"] = chasher(mainJson[f"{prefix}_calling_subs_last_ex_id"])
         except:
             pass
         try:
-            mainJson[f"{prefix}_connected_to_number"] = hasher(mainJson[f"{prefix}_connected_to_number"])
+            mainJson[f"{prefix}_connected_to_number"] = chasher(mainJson[f"{prefix}_connected_to_number"])
         except:
             pass
         try:
-            mainJson[f"{prefix}_destination_number"] = hasher(mainJson[f"{prefix}_destination_number"])
+            mainJson[f"{prefix}_destination_number"] = chasher(mainJson[f"{prefix}_destination_number"])
         except:
             pass
         try:
-            mainJson[f"{prefix}_dialled_digits"] = hasher(mainJson[f"{prefix}_dialled_digits"])
+            mainJson[f"{prefix}_dialled_digits"] = chasher(mainJson[f"{prefix}_dialled_digits"])
         except:
             pass
         try:
-            mainJson[f"{prefix}_forwarded_to_number"] = hasher(mainJson[f"{prefix}_forwarded_to_number"])
+            mainJson[f"{prefix}_forwarded_to_number"] = chasher(mainJson[f"{prefix}_forwarded_to_number"])
         except:
             pass
         try:
@@ -189,7 +187,7 @@ def editMe(fileToBeOpened=None):
         except:
             pass
         try:
-            mainJson[f"{prefix}_orig_calling_number"] = hasher(mainJson[f"{prefix}_orig_calling_number"])
+            mainJson[f"{prefix}_orig_calling_number"] = chasher(mainJson[f"{prefix}_orig_calling_number"])
         except:
             pass
         try:
@@ -197,11 +195,11 @@ def editMe(fileToBeOpened=None):
         except:
             pass
         try:
-            mainJson[f"{prefix}_served_number"] = hasher(mainJson[f"{prefix}_served_number"])
+            mainJson[f"{prefix}_served_number"] = chasher(mainJson[f"{prefix}_served_number"])
         except:
             pass
         try:
-            mainJson[f"{prefix}_served_party_identity"] = hasher(mainJson[f"{prefix}_served_party_identity"])
+            mainJson[f"{prefix}_served_party_identity"] = chasher(mainJson[f"{prefix}_served_party_identity"])
         except:
             pass
         try:
@@ -226,6 +224,10 @@ def editMe(fileToBeOpened=None):
             pass
         try:
             mainJson[f"{prefix}_forwarding_imeisv"] = hasher(mainJson[f"{prefix}_forwarding_imeisv"])
+        except:
+            pass
+        try:
+            mainJson[f"{prefix}_outpulsed_number"] = chasher(mainJson[f"{prefix}_outpulsed_number"])
         except:
             pass
 
