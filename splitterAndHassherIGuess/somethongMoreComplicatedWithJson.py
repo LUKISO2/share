@@ -119,7 +119,10 @@ def editMe(fileToBeOpened=None):
         if innerValue[4] != "":
             mainJson["a_party_location"] = innerValue[4]
         if innerValue[5] != "":
-            mainJson["b_party_msisdn"] = innerValue[5]
+            if isATelNumber(innerValue[5]) == True:
+                mainJson["a_party_msisdn"] = hasher(innerValue[5])
+            else:
+                mainJson["a_party_msisdn"] = innerValue[5]
         if innerValue[6] != "":
             mainJson["b_party_location"] = innerValue[6]
         if innerValue[7] != "":
@@ -127,7 +130,10 @@ def editMe(fileToBeOpened=None):
         if innerValue[8] != "":
             mainJson["timestamp_offset"] = innerValue[8]
         if innerValue[9] != "":
-            mainJson["c_party_msisdn"] = innerValue[9]
+            if isATelNumber(innerValue[9]) == True:
+                mainJson["a_party_msisdn"] = hasher(innerValue[9])
+            else:
+                mainJson["a_party_msisdn"] = innerValue[9]
         if innerValue[10] != "":
             mainJson["c_party_location"] = innerValue[10]
 
