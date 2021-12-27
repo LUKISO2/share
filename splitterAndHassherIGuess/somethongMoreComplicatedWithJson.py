@@ -138,6 +138,12 @@ def editMe(fileToBeOpened=None):
             mainJson["c_party_location"] = innerValue[10]
 
         # Hasing in json values
+        #"_called_imei"
+        #"_called_imeisv"
+        #"_calling_imei"
+        #"_calling_imeisv"
+        #"_forwarding_imei"
+        #"_forwarding_imeisv"
         try:
             mainJson[f"{prefix}_called_imsi"] = hasher(mainJson[f"{prefix}_called_imsi"])
         except:
@@ -196,6 +202,30 @@ def editMe(fileToBeOpened=None):
             pass
         try:
             mainJson[f"{prefix}_served_party_identity"] = hasher(mainJson[f"{prefix}_served_party_identity"])
+        except:
+            pass
+        try:
+            mainJson[f"{prefix}_called_imei"] = hasher(mainJson[f"{prefix}_called_imei"])
+        except:
+            pass
+        try:
+            mainJson[f"{prefix}_called_imeisv"] = hasher(mainJson[f"{prefix}_called_imeisv"])
+        except:
+            pass
+        try:
+            mainJson[f"{prefix}_calling_imei"] = hasher(mainJson[f"{prefix}_calling_imei"])
+        except:
+            pass
+        try:
+            mainJson[f"{prefix}_calling_imeisv"] = hasher(mainJson[f"{prefix}_calling_imeisv"])
+        except:
+            pass
+        try:
+            mainJson[f"{prefix}_forwarding_imei"] = hasher(mainJson[f"{prefix}_forwarding_imei"])
+        except:
+            pass
+        try:
+            mainJson[f"{prefix}_forwarding_imeisv"] = hasher(mainJson[f"{prefix}_forwarding_imeisv"])
         except:
             pass
 
