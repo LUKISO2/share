@@ -44,14 +44,10 @@ def editMe(fileToBeOpened=None):
     contents = contents.decode("utf-8")
     values = contents.split("\n")
     try:
-        values = values[:len(values)-1]
+        values = values[:len(values)-1] if values[-1] == "" else values
     except:
         print("File is empty")
         sys.exit()
-
-    # Telephojne number checker
-    def isATelNumber(value):
-        return True if re.match("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{3})(?: *x(\d+))?\s*$", value) else False
 
     # Hasher for phone numbers
     def hasher(value):
@@ -75,9 +71,9 @@ def editMe(fileToBeOpened=None):
             return hasher(strValue)
         else:
             return value
-
+    # Telephone checker
     def thasher(value):
-        if isATelNumber(value):
+        if re.match("^\s*(?:\+?(\d{1,3}))?[-. (]*(\d{3})[-. )]*(\d{3})[-. ]*(\d{3})(?: *x(\d+))?\s*$", value):
             return hasher(value)
         else:
             return value
