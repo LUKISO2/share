@@ -36,8 +36,8 @@ def editMe(fileToBeOpened=None):
         else:
             print("File does not exist")
             sys.exit()
-    except:
-        print("File isn't gzipped")
+    except Exception as e:
+        print(f"File isn't gzipped, error: {e}")
         sys.exit()
 
     # Decode the file
