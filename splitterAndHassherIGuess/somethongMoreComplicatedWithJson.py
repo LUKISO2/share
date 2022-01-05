@@ -4,33 +4,40 @@ import json
 import re
 import os.path
 
-def editMe(fileToBeOpened=None):
+def editMe(toOpen=None, outputPath=None):
     # Checking for arguments
-    if fileToBeOpened == None:
+    if toOpen == None:
         if sys.argv[0] == sys.argv[-1]:
             print("No file specified!")
             sys.exit()
         else:
-            fileToBeOpened = sys.argv[-1]
+            toOpen = sys.argv[-1]
+            
     finalResult = []
 
-    if "-o" in sys.argv:
-        try:
-            outputPath = sys.argv[sys.argv.index("-o") + 1]
-        except:
-            print("ERROR - Invalid output path!")
-            sys.exit()
+    if outputPath == None:
+        if "-o" in sys.argv:
+            try:
+                outputPath = sys.argv[sys.argv.index("-o") + 1]
+            except:
+                print("ERROR - Invalid output path!")
+                sys.exit()
+            if not os.path.isdir(outputPath):
+                print("ERROR - Output directory does not exist!")
+                sys.exit()
+            changeOutputPath = True
+        else:
+            changeOutputPath = False
+    else:
         if not os.path.isdir(outputPath):
             print("ERROR - Output directory does not exist!")
             sys.exit()
         changeOutputPath = True
-    else:
-        changeOutputPath = False
 
     # Open the file
     try:
-        if os.path.isfile(fileToBeOpened):
-            gunzip = gzip.open(fileToBeOpened, "rb")
+        if os.path.isfile(toOpen):
+            gunzip = gzip.open(toOpen, "rb")
             contents = gunzip.read()
             gunzip.close()
         else:
@@ -80,11 +87,11 @@ def editMe(fileToBeOpened=None):
     
     # Used for determining output path
     def getOutputPath(changeOutputPath=changeOutputPath):
-        rawFileName = os.path.basename(fileToBeOpened)
+        rawFileName = os.path.basename(toOpen)
         rawFileName = rawFileName.split(".")
         finalName = rawFileName[0] + "_hashed.json.gz"
         if changeOutputPath == False:
-            return os.path.join(os.path.dirname(fileToBeOpened), finalName)
+            return os.path.join(os.path.dirname(toOpen), finalName)
         elif changeOutputPath == True:
             return os.path.join(outputPath, finalName)
 
