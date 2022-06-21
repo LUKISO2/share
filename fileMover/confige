@@ -1,0 +1,9 @@
+[TEST]
+input_dir = D:\users\Lukasek\Servers\Python\protatu\fileMover\input
+output_mask_dirs = /data/bbbb/data/OUTPUT
+log_extension = _cibs_daily
+debug_level = DEBUG
+output_dir = D:\users\Lukasek\Servers\Python\protatu\fileMover\output
+list_file = D:\users\Lukasek\Servers\Python\protatu\fileMover\testo.txt
+file_mask_xxxxxxxxx = 10{0,}.txt
+file_mask = .*\.tmp$
