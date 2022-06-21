@@ -2,7 +2,7 @@ import somethongMoreComplicatedWithJson as sig
 from queue import Queue
 from os import listdir
 from os.path import isfile, isdir, join
-import threading
+import multiprocessing as mp
 import sys
 import time
 
@@ -76,15 +76,17 @@ def main(myPath=None, outputPath=None, numberOfThreads=None):
 
     print("waiting for queue to complete", jobs.qsize(), "tasks")
 
+    pool = mp.Pool(processes=numberOfThreads)
+
     for i in range(numberOfThreads):
-        t = threading.Thread(target=doStuff, args=(jobs,))
-        t.start()
+        t = pool.apply_async(doStuff)
+        #t.start()
 
     jobs.join()
     print("all done")
 
 if __name__ == "__main__":
     t0 = time.time()
-    main()
+    main("//NASJH/Shared/DEVELOP/threading", "//NASJH/Shared/DEVELOP/threading/final/", 20)
     t1 = time.time()
     print("Time taken: %s" % (t1 - t0))
