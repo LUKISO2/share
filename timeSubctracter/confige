@@ -2,4 +2,5 @@
 input_dir = \\nasjh\LukasBackup\Lukasek\Servers\Python\protatu\timeSubctracter\input
 inp_file_mask = MD.*.load.gz$
 timestamp_regexp = ^.*_[0-9]_(20[1-2][0-9][0-1][0-9][0-3][0-9][0-2][0-9][0-5][0-9][0-5][0-9])_.*
+time_format = %Y%m%d%H%M%S
 out_file = \\nasjh\LukasBackup\Lukasek\Servers\Python\protatu\timeSubctracter\outie.csv
