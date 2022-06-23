@@ -38,6 +38,7 @@ if os.path.isfile(os.path.join(confRoot, config_file)):
     fileMask = config.get(apsEnv, 'inp_file_mask') if 'inp_file_mask' in config.options(apsEnv) else None
     stampMask = config.get(apsEnv, 'timestamp_regexp') if 'timestamp_regexp' in config.options(apsEnv) else None
     outputFile = config.get(apsEnv, 'out_file') if 'out_file' in config.options(apsEnv) else None
+    uniFormat = config.get(apsEnv, 'time_format') if 'time_format' in config.options(apsEnv) else None
     debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else 'DEBUG'
 else:
     tmpLog.error('Configuration file not found')
@@ -84,9 +85,10 @@ logger.debug(f'Debug level: {debugLevel}')
 logger.debug(f'Input directory: {inputDir}')
 logger.debug(f'File mask: {fileMask}')
 logger.debug(f'Timestamp mask: {stampMask}')
+logger.debug(f'Time format: {uniFormat}')
 
 #Checks if the config file loaded correctly
-if None in [inputDir, fileMask, debugLevel, stampMask, outputFile]:
+if None in [inputDir, fileMask, debugLevel, stampMask, outputFile, uniFormat]:
     logger.error("Missing configuration parameters")
     sys.exit(2)
 
@@ -121,7 +123,7 @@ for file in os.listdir(inputDir):
     #extracts timestamp from filename
     fstamp = re.findall(stampMask, file)
     if len(fstamp) == 1:
-        estamp = time.mktime(datetime.strptime(fstamp[0], '%Y%m%d%H%M%S').timetuple())
+        estamp = time.mktime(datetime.strptime(fstamp[0], uniFormat).timetuple())
         logger.debug(f'filename timestamp praised to: {estamp}')
     else:
         logger.error(f'filename timestamp not found, or found multiple times in: {file}')
