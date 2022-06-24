@@ -29,8 +29,6 @@ config_file = argparser.parse_args().config_name[0]
 confRoot = os.getenv('CONF_ROOT')
 apsEnv = os.getenv('APS_ENV','TEST')
 
-confRoot = "Z:/Lukasek/Servers/Python/protatu/timeSubctracter"
-
 if confRoot is None:
     tmpLog.error('Environment variable CONF_ROOT is not set')
     sys.exit(2)
