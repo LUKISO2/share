@@ -1,3 +1,5 @@
+# Version 1.0.1
+
 from datetime import datetime
 import configparser
 import argparse
@@ -9,6 +11,7 @@ import os
 
 #Basic Values
 matched = 0
+mainFormat = "%Y%m%d%H%M%S"
 
 #temporaly logging before config
 tmpLog = logging.getLogger(f'Pre_config_log_of___{os.path.basename(__file__)}___')
@@ -26,18 +29,20 @@ config_file = argparser.parse_args().config_name[0]
 confRoot = os.getenv('CONF_ROOT')
 apsEnv = os.getenv('APS_ENV','TEST')
 
+confRoot = "Z:/Lukasek/Servers/Python/protatu/timeSubctracter"
+
 if confRoot is None:
     tmpLog.error('Environment variable CONF_ROOT is not set')
     sys.exit(2)
 
 # Read configuration
 if os.path.isfile(os.path.join(confRoot, config_file)):
-    config = configparser.ConfigParser()
+    config = configparser.RawConfigParser()
     config.read(os.path.join(confRoot, config_file))
     inputDir = config.get(apsEnv, 'input_dir') if 'input_dir' in config.options(apsEnv) else None
     fileMask = config.get(apsEnv, 'inp_file_mask') if 'inp_file_mask' in config.options(apsEnv) else None
     stampMask = config.get(apsEnv, 'timestamp_regexp') if 'timestamp_regexp' in config.options(apsEnv) else None
-    outputFile = config.get(apsEnv, 'out_file') if 'out_file' in config.options(apsEnv) else None
+    outputFileRaw = config.get(apsEnv, 'out_file') if 'out_file' in config.options(apsEnv) else None
     uniFormat = config.get(apsEnv, 'time_format') if 'time_format' in config.options(apsEnv) else None
     debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else 'DEBUG'
 else:
@@ -87,6 +92,8 @@ logger.debug(f'File mask: {fileMask}')
 logger.debug(f'Timestamp mask: {stampMask}')
 logger.debug(f'Time format: {uniFormat}')
 
+outputFile = f'{str(outputFileRaw)}_{str(datetime.now().strftime(mainFormat))}{str(os.getpid())}.list'
+
 #Checks if the config file loaded correctly
 if None in [inputDir, fileMask, debugLevel, stampMask, outputFile, uniFormat]:
     logger.error("Missing configuration parameters")
@@ -100,8 +107,12 @@ if len(os.listdir(inputDir)) == 0:
     logger.error("Input directory is empty")
     sys.exit(1)
 if not os.path.isfile(outputFile):
-    logger.error("Output file doesn't exist")
-    sys.exit(2)
+    if not os.path.isdir(os.path.dirname(outputFile)):
+        logger.error('Folder of the output file does not exist')
+        sys.exit(2)
+    with open(outputFile, 'w') as f:
+        f.write('')
+        f.close()
 try: re.compile(fileMask)
 except re.error:
     logger.error("Invalid file mask")
@@ -144,7 +155,7 @@ for file in os.listdir(inputDir):
 
     #Appends timestamp to filename
     with open(outputFile, 'a') as f:
-        f.write(f'{file}|{fstamp[0]}|{datetime.fromtimestamp(mstamp).strftime("%Y%m%d%H%M%S")}|{difference}\n')
+        f.write(f'{file}|{fstamp[0]}|{datetime.fromtimestamp(mstamp).strftime(mainFormat)}|{difference}\n')
         f.close()
     
     matched += 1
