@@ -1,7 +1,17 @@
-# Version 1.0.1
+#!/opt/freeware/bin/python2.6
+############################################################################################################################
+#
+# Move files from input directory to the tape backup directory and prepare control file for backup engine
+# 1. Move files (by the file mask) to output directory (tape backup directory)
+# 2. Create list file with list of backuped files ("listing.txt")
+# 3. Add list of backuped files to the full list of backuped files
+# Use:
+# move_for_backup.py <configuration_file>
+#
+
 import ConfigParser
 import datetime
-import argparse
+#import argparse
 import logging
 import shutil
 import sys
@@ -21,16 +31,15 @@ tmpLogHnd.setFormatter(logging.Formatter('%(asctime)s %(levelname)s; %(message)s
 tmpLog.addHandler(tmpLogHnd)
 
 #getting file name argument
-argparser = argparse.ArgumentParser(description='Moves files with excesive logging')
-argparser.add_argument('config', type=str, help='Name of the config file', nargs=1)
-config_file = argparser.parse_args().config[0]
+#argparser = argparse.ArgumentParser(description='Moves files with excesive logging')
+#argparser.add_argument('config', type=str, help='Name of the config file', nargs=1)
+#config_file = argparser.parse_args().config[0]
+config_file = sys.argv[1]
 
 # Get environment variables
-confRoot = os.getenv('CONF_ROOT')
-apsEnv = os.getenv('APS_ENV','TEST')
-
-#TMP
-confRoot = '//nasjh/LukasBackup/Lukasek/Servers/Python/protatu/fileMover'
+cwd = os.getcwd()
+confRoot = os.path.join(os.getenv('APL_DIR'),'config')
+apsEnv = os.getenv('APS_ENV','PROD')
 
 if confRoot is None:
     tmpLog.error('Environment variable CONF_ROOT is not set')
@@ -108,7 +117,7 @@ if not os.path.isfile(listFile):
     logger.error("'List file' doesn't exist")
     sys.exit(2)
 if os.path.isfile(os.path.join(outputDir, 'listing.txt')):
-    logger.error("'Listing.txt' already exists - stopped")
+    logger.error("'listing.txt' already exists - stopped")
     sys.exit(1)
 try: re.compile(fileMask)
 except re.error:
@@ -118,7 +127,7 @@ except re.error:
 #starts moving files
 logger.info('Starting moving files')
 logger.debug('----------')
-for file in os.listdir(inputDir):
+for file in sorted(os.listdir(inputDir)):
     logger.debug('Matching file...: %s' % file)
     if re.match(fileMask, file):
         logger.info('Matched found, moving: %s' % file)
@@ -133,11 +142,11 @@ for file in os.listdir(inputDir):
                 logger.debug('Passed size check')
                 logger.info('File moved: %s' % file)
             else:
-                logger.error('File size mismatch: %s' % file)
-                continue
+                logger.error('Moved file is incompleate: %s' % file)
+                sys.exit(2)
         else:
             logger.error('File not moved: %s' % file)
-            continue
+            sys.exit(2)
         movedFiles.append(file)
         logger.debug('Move successful')
         with open(listFile, 'a') as f:
@@ -149,7 +158,7 @@ logger.debug('----------')
 
 #checks if any files were moved
 if matched == 0:
-    logger.info("No files out of %s matched the mask" % len(os.listdir(inputDir)))
+    logger.info("No files matched the mask")
     sys.exit(1)
 logger.info('successfully moved %s files' % matched)
 
