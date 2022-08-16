@@ -1,3 +1,4 @@
+# Version 1.0.1
 import ConfigParser
 import datetime
 import argparse
@@ -125,6 +126,18 @@ for file in os.listdir(inputDir):
         except Exception as e:
             logger.error('Failed to move file: "%s" because: %s' %(file, str(e)))
             sys.exit(2)
+        logger.debug('Checking if file was moved...')
+        if os.path.isfile(os.path.join(outputDir, file)):
+            logger.debug('Passed quick check')
+            if os.path.getsize(os.path.join(outputDir, file)) == os.path.getsize(os.path.join(inputDir, file)):
+                logger.debug('Passed size check')
+                logger.info('File moved: %s' % file)
+            else:
+                logger.error('File size mismatch: %s' % file)
+                continue
+        else:
+            logger.error('File not moved: %s' % file)
+            continue
         movedFiles.append(file)
         logger.debug('Move successful')
         with open(listFile, 'a') as f:
