@@ -21,6 +21,7 @@ import os
 #Basic Values
 movedFiles = []
 matched = 0
+version = '1.0.2'
 rndNum = str(os.getpid()) + '_' + str(datetime.datetime.now().microsecond / 1000)
 
 #temporaly logging before config
@@ -94,12 +95,13 @@ logger.addHandler(outHandler)
 logger.addHandler(errHandler)
 
 #Logging
-logger.debug('Debug level: %s' % debugLevel)
-logger.debug('Input directory: %s' % inputDir)
-logger.debug('Output directory: %s' % outputDir)
-logger.debug('List file: %s' % listFile)
-logger.debug('File mask: %s' % fileMask)
-logger.debug('temporary file extension is: %s' % rndNum)
+logger.info('Script version: %s' % version)
+logger.info('Debug level: %s' % debugLevel)
+logger.info('Input directory: %s' % inputDir)
+logger.info('Output directory: %s' % outputDir)
+logger.info('List file: %s' % listFile)
+logger.info('File mask: %s' % fileMask)
+logger.info('temporary file extension is: %s' % rndNum)
 
 #Checks if the config file loaded correctly
 if None in [inputDir, outputDir, listFile, fileMask, debugLevel]:
