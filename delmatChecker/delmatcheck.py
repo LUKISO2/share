@@ -6,7 +6,7 @@ import re
 import os
 
 # Hand changable variables
-version = '1.0.0'
+version = '1.1.0'
 debugLevel = 'debug'
 logs = []
 delmatExtended = []
