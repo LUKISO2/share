@@ -133,6 +133,7 @@ for file in sorted(os.listdir(inputDir)):
     logger.debug('Matching file...: %s' % file)
     if re.match(fileMask, file):
         logger.info('Matched found, moving: %s' % file)
+        inputSize = os.path.getsize(os.path.join(inputDir, file))
         try: shutil.move(os.path.join(inputDir, file), os.path.join(outputDir, file))
         except Exception as e:
             logger.error('Failed to move file: "%s" because: %s' %(file, str(e)))
@@ -140,7 +141,7 @@ for file in sorted(os.listdir(inputDir)):
         logger.debug('Checking if file was moved...')
         if os.path.isfile(os.path.join(outputDir, file)):
             logger.debug('Passed quick check')
-            if os.path.getsize(os.path.join(outputDir, file)) == os.path.getsize(os.path.join(inputDir, file)):
+            if os.path.getsize(os.path.join(outputDir, file)) == inputSize:
                 logger.debug('Passed size check')
                 logger.info('File moved: %s' % file)
             else:
