@@ -50,15 +50,15 @@ logs.append(f'Application: delmatchecker.py, Version: {version}, Build: Unknown'
 logger.info(f'Application: delmatchecker.py, Version: {version}, Build: Unknown')
 
 # Writes error 
-def writeLog(array):
-    logrs = logging.FileHandler(os.path.join(os.environ['APPL_DIR'], 'log/delmatcheck/app.log'))
+def writeLog(array, logger=logger):
+    whereCreate = os.path.join(os.environ['APPL_DIR'], 'log/delmatcheck/app.log')
+    logrs = logging.FileHandler(whereCreate)
     logrs.setLevel(logging.ERROR)
     logrs.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(name)s$ [%(processName)s] %(message)s'))
     legres = logging.getLogger(os.path.basename(__file__))
     legres.addHandler(logrs)
     legres.error('\n'.join(array))
-    # for item in array:
-    #     logger.error(item)
+    logger.info(f'Created error log in {whereCreate}')
 
 # Loads enviroment vars from config file
 def loadEnviron(config):
@@ -109,6 +109,8 @@ for item in os.listdir(delmatFolder):
         pathe = os.path.join(delmatFolder, item)
         for item2 in os.listdir(pathe):
             path = os.path.join(pathe, item2)
+            if not os.path.isfile(path):
+                continue
             try:
                 with open(path, 'r') as f:
                     for line in f.readlines():
@@ -127,11 +129,14 @@ for item in os.listdir(delmatFolder):
 
 # Loads all files and filters out the relevant ones
 for item in os.listdir(os.environ['CONF_ROOT']):
-    if os.path.isdir(os.path.join(delmatFolder, item)):
-        logger.debug(f'Found delmat folder: {item}')
-        pathe = os.path.join(delmatFolder, item)
+    logger.debug(f'Loading {item}')
+    if os.path.isdir(os.path.join(os.environ['CONF_ROOT'], item)):
+        logger.debug(f'Working with folder {item}')
+        pathe = os.path.join(os.environ['CONF_ROOT'], item)
         for item2 in os.listdir(pathe):
             configFile = os.path.join(pathe, item2)
+            if not os.path.isfile(configFile):
+                continue
             if not configFile.endswith('.conf') or re.search('jaas.*.conf', configFile):
                 continue
 
