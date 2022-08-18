@@ -74,7 +74,7 @@ errHandler.setLevel(logging.ERROR)
 errHandler.setFormatter(formater)
 errHandler.setLevel(max(MIN_LEVEL, logging.ERROR))
 
-rotatingHandler = logging.handlers.TimedRotatingFileHandler(os.path.join(logDir, 'app.log'), when='d', interval=30, backupCount=1)
+rotatingHandler = logging.handlers.TimedRotatingFileHandler(os.path.join(logDir, logFile), when='d', interval=30, backupCount=1)
 rotatingHandler.setLevel(logging.DEBUG)
 rotatingHandler.setFormatter(formater)
 
