@@ -1,11 +1,13 @@
 #!/opt/cloudera/parcels/Anaconda/envs/python36/bin/python
+from array import array
 import concurrent.futures
 import logging.handlers
 import configparser
 import subprocess
+import pyhocon
 import logging
 import queue
-import pyhocon
+import time
 import sys
 import re
 import io
@@ -17,7 +19,7 @@ delmatExtended = []
 toDo = queue.Queue()
 
 #temporaly logging before config
-formater = logging.Formatter('%(asctime)s %(levelname)s %(name)s$ [%(processName)s] %(message)s')
+formater = logging.Formatter('%(asctime)s %(name)s$ [%(thread)d] %(levelname)s %(message)s')
 tmpLog = logging.getLogger('Pre_config_log_of___%s___' % os.path.basename(__file__))
 tmpLogHnd = logging.StreamHandler(sys.stderr)
 tmpLogHnd.setLevel(logging.ERROR)
@@ -74,7 +76,7 @@ errHandler.setLevel(logging.ERROR)
 errHandler.setFormatter(formater)
 errHandler.setLevel(max(MIN_LEVEL, logging.ERROR))
 
-rotatingHandler = logging.handlers.TimedRotatingFileHandler(os.path.join(logDir, logFile), when='d', interval=30, backupCount=1)
+rotatingHandler = logging.handlers.TimedRotatingFileHandler(os.path.join(logDir, 'app.log'), when='d', interval=30, backupCount=1)
 rotatingHandler.setLevel(logging.DEBUG)
 rotatingHandler.setFormatter(formater)
 
@@ -164,86 +166,88 @@ for item in os.listdir(os.environ['CONF_ROOT']):
             toDo.put(configFile)
 
 def main(configFile, delmatExtended=delmatExtended, logger=logger):
-        # Loads required variables into env to be used by parser and logging
-        logger.info('Loading config file: ' + configFile)
-        try:
-            config = pyhocon.ConfigFactory.parse_file(configFile)
-        except Exception as e:
-            logger.warn(f"{configFile} is either not a valid hocon config file or pyhocon wasn't able to resolve a global variable, error: {e}")
-            return
-        feedSystem = str(config.get('feed_System', None))
-        os.environ['feed_System'] = feedSystem
-        if feedSystem is None:
-            logger.warn('No feed_System defined in config file: ' + configFile)
-            return
-        feedName = str(config.get('feed_Name', None))
-        os.environ['feed_Name'] = feedName
-        if feedName is None:
-            logger.warn('No feed_Name defined in config file: ' + configFile)
-            return
-        feedVersion = str(config.get('feed_Version', None))
-        os.environ['feed_Version'] = feedVersion
-        if feedVersion is None:
-            logger.warn('No feed_Version defined in config file: ' + configFile)
-            return
-        direction = config.get('feed_Direction', None)
-        logger.info(f'feed_Direction: {str(direction)}, feed_System: {feedSystem}, feed_Name: {feedName}, feed_Version: {feedVersion}')
-        failMail = config.get('feed_FailMail', None)
-        logger.info('feed_FailMail: ' + str(failMail))
-        author = config.get('feed_Author', 'Unknown')
-        logger.info('feed_Author: ' + str(author))
+    # Loads required variables into env to be used by parser and logging
+    debug = []
+    debug.append([logging.DEBUG, 'Loading config file: ' + configFile])
+    try:
+        config = pyhocon.ConfigFactory.parse_file(configFile)
+    except Exception as e:
+        debug.append([logging.WARN, f"{configFile} is either not a valid hocon config file or pyhocon wasn't able to resolve a global variable, error: {e}"])
+        return
+    feedSystem = str(config.get('feed_System', None))
+    os.environ['feed_System'] = feedSystem
+    if feedSystem is None:
+        debug.append([logging.WARN, 'No feed_System defined in config file: ' + configFile])
+        return
+    feedName = str(config.get('feed_Name', None))
+    os.environ['feed_Name'] = feedName
+    if feedName is None:
+        debug.append([logging.WARN, 'No feed_Name defined in config file: ' + configFile])
+        return
+    feedVersion = str(config.get('feed_Version', None))
+    os.environ['feed_Version'] = feedVersion
+    if feedVersion is None:
+        debug.append([logging.WARN, 'No feed_Version defined in config file: ' + configFile])
+        return
+    direction = config.get('feed_Direction', None)
+    debug.append([logging.INFO, f'feed_Direction: {str(direction)}, feed_System: {feedSystem}, feed_Name: {feedName}, feed_Version: {feedVersion}'])
+    failMail = config.get('feed_FailMail', None)
+    debug.append([logging.INFO, 'feed_FailMail: ' + str(failMail)])
+    author = config.get('feed_Author', 'Unknown')
+    debug.append([logging.INFO, 'feed_Author: ' + str(author)])
 
-        # Loads input from files, check for LocalFS input_Type and if they archive to HDFS, if so it check for their existence in DELMAT, raises error if not found
-        inputHDFS = config.get('input.archive_HDFS_Path', None)
-        if inputHDFS is None:
-            return
-        delmatToCheckPath = os.path.normpath(os.path.expandvars(inputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_dt')[0])
-        logger.debug(f'Input HDFS path: {delmatToCheckPath}')
-        answerInp = subprocess.run(['hadoop', 'fs', '-ls', delmatToCheckPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        ansInp = answerInp.stdout.decode('utf-8').strip()
-        passedIn = False
-        if not re.search('/p_', ansInp, flags=re.M|re.S):
-            logger.info(f'No p_* folder found on hadoop path: {ansInp}')
-            return
+    # Loads input from files, check for LocalFS input_Type and if they archive to HDFS, if so it check for their existence in DELMAT, raises error if not found
+    inputHDFS = config.get('input.archive_HDFS_Path', None)
+    if inputHDFS is None:
+        return
+    delmatToCheckPath = os.path.normpath(os.path.expandvars(inputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_dt')[0])
+    debug.append([logging.DEBUG, f'Input HDFS path: {delmatToCheckPath}'])
+    answerInp = subprocess.run(['hadoop', 'fs', '-ls', delmatToCheckPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    ansInp = answerInp.stdout.decode('utf-8').strip()
+    passedIn = False
+    if not re.search('/p_', ansInp, flags=re.M|re.S):
+        debug.append([logging.INFO, f'No p_* folder found on HDFS path: {ansInp}'])
+    else:
         for deli in delmatExtended:
             if re.search(deli[0], delmatToCheckPath):
-                logger.info(f'Input config {configFile} found in delmat {deli[1]}')
+                debug.append([logging.INFO, f'Input config {configFile} found in delmat {deli[1]}'])
                 passedIn = True
                 break
         if not passedIn:
-            logger.warn(f'Input HDFS path {delmatToCheckPath} from {configFile} is not in delmat files, file made by: {author}')
+            debug.append([logging.WARN, f'Input HDFS path {delmatToCheckPath} from {configFile} is not in delmat files, file made by: {author}'])
 
-        # Does basically the same as input, but checkes ALL outputs for HDFS and raises error if path not found in DELMAT
-        outputs = config.get('output', [])
-        for output in outputs:
-            outputType = output.get('output_Type', None)
-            if outputType == 'HDFS':
-                outputHDFS = config.get('output.output_HDFS_Path', None)
-                if outputHDFS is None:
-                    return
-                hdfsPath = os.path.normpath(os.path.expandvars(outputHDFS).replace('"', '').replace('\\', '/').replace('//', '/'))
-                logger.debug(f'Output hadoop path: {hdfsPath}')
-                answerOut = subprocess.run(['hadoop', 'fs', '-ls', delmatToCheckPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                ansOut = answerOut.stdout.decode('utf-8').strip()
-                if not re.search('/p_', ansOut, flags=re.M|re.S):
-                    logger.info(f'No p_* folder found on hadoop path: {ansOut}')
-                    return
-                passedOut = False
-                for deli in delmatExtended:
-                    if re.search(deli[0], hdfsPath):
-                        logger.info(f'Output config {configFile} found in delmat {deli[1]}')
-                        passedOut = True
-                        break
-                if not passedOut:
-                    logger.warn(f'Output HDFS path {hdfsPath} from {configFile} is not in delmat files, file made by: {author}')
+    # Does basically the same as input, but checkes ALL outputs for HDFS and raises error if path not found in DELMAT
+    outputs = config.get('output', [])
+    for output in outputs:
+        outputType = output.get('output_Type', None)
+        if outputType == 'HDFS':
+            outputHDFS = output.get('output_Path', None)
+            if outputHDFS is None:
+                continue
+            hdfsPath = os.path.normpath(os.path.expandvars(outputHDFS).replace('"', '').replace('\\', '/').replace('//', '/'))
+            debug.append([logging.DEBUG, f'Output HDFS path: {hdfsPath}'])
+            answerOut = subprocess.run(['hadoop', 'fs', '-ls', delmatToCheckPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            ansOut = answerOut.stdout.decode('utf-8').strip()
+            if not re.search('/p_', ansOut, flags=re.M|re.S):
+                debug.append([logging.INFO, f'No p_* folder found on HDFS path: {ansOut}'])
+                continue
+            passedOut = False
+            for deli in delmatExtended:
+                if re.search(deli[0], hdfsPath):
+                    debug.append([logging.INFO, f'Output config {configFile} found in delmat {deli[1]}'])
+                    passedOut = True
+                    break
+            if not passedOut:
+                debug.append([logging.WARN, f'Output HDFS path {hdfsPath} from {configFile} is not in delmat files, file made by: {author}'])
 
-if __name__ == '__main__':
-    tre = []
-    for item in range(toDo.qsize()):
-        tre.append(toDo.get())
+    for toLog in debug:
+        logger.log(toLog[0], toLog[1])
+    
+tre = []
+for item in range(toDo.qsize()):
+    tre.append(toDo.get())
 
-    # BEFORE SETTING max_workers TO ANYTHING BUT 1, you must rewrite file Handlerel to io.SringIO var!
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        executor.map(main, tre)
+with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+    executor.map(main, tre)
 
 logger.info('DONE!')
