@@ -173,21 +173,26 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
         config = pyhocon.ConfigFactory.parse_file(configFile)
     except Exception as e:
         debug.append([logging.WARN, f"{configFile} is either not a valid hocon config file or pyhocon wasn't able to resolve a global variable, error: {e}"])
+        for toLog in debug:
+            logger.log(toLog[0], toLog[1])
         return
     feedSystem = str(config.get('feed_System', None))
-    os.environ['feed_System'] = feedSystem
     if feedSystem is None:
         debug.append([logging.WARN, 'No feed_System defined in config file: ' + configFile])
+        for toLog in debug:
+            logger.log(toLog[0], toLog[1])
         return
     feedName = str(config.get('feed_Name', None))
-    os.environ['feed_Name'] = feedName
     if feedName is None:
         debug.append([logging.WARN, 'No feed_Name defined in config file: ' + configFile])
+        for toLog in debug:
+            logger.log(toLog[0], toLog[1])
         return
     feedVersion = str(config.get('feed_Version', None))
-    os.environ['feed_Version'] = feedVersion
     if feedVersion is None:
         debug.append([logging.WARN, 'No feed_Version defined in config file: ' + configFile])
+        for toLog in debug:
+            logger.log(toLog[0], toLog[1])
         return
     direction = config.get('feed_Direction', None)
     debug.append([logging.INFO, f'feed_Direction: {str(direction)}, feed_System: {feedSystem}, feed_Name: {feedName}, feed_Version: {feedVersion}'])
@@ -198,23 +203,22 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
 
     # Loads input from files, check for LocalFS input_Type and if they archive to HDFS, if so it check for their existence in DELMAT, raises error if not found
     inputHDFS = config.get('input.archive_HDFS_Path', None)
-    if inputHDFS is None:
-        return
-    delmatToCheckPath = os.path.normpath(os.path.expandvars(inputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_dt')[0])
-    debug.append([logging.DEBUG, f'Input HDFS path: {delmatToCheckPath}'])
-    answerInp = subprocess.run(['hadoop', 'fs', '-ls', delmatToCheckPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    ansInp = answerInp.stdout.decode('utf-8').strip()
-    passedIn = False
-    if not re.search('/p_', ansInp, flags=re.M|re.S):
-        debug.append([logging.INFO, f'No p_* folder found on HDFS path: {ansInp}'])
-    else:
-        for deli in delmatExtended:
-            if re.search(deli[0], delmatToCheckPath):
-                debug.append([logging.INFO, f'Input config {configFile} found in delmat {deli[1]}'])
-                passedIn = True
-                break
-        if not passedIn:
-            debug.append([logging.WARN, f'Input HDFS path {delmatToCheckPath} from {configFile} is not in delmat files, file made by: {author}'])
+    if inputHDFS is not None:
+        delmatToCheckPath = os.path.normpath(os.path.expandvars(inputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
+        debug.append([logging.DEBUG, f'Input HDFS path: {delmatToCheckPath}'])
+        answerInp = subprocess.run(['hadoop', 'fs', '-ls', delmatToCheckPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        ansInp = answerInp.stdout.decode('utf-8').strip()
+        passedIn = False
+        if not re.search('/p_', ansInp, flags=re.M|re.S):
+            debug.append([logging.INFO, f'No p_* folder found on HDFS path: {ansInp}'])
+        else:
+            for deli in delmatExtended:
+                if re.search(deli[0], delmatToCheckPath):
+                    debug.append([logging.INFO, f'Input config {configFile} found in delmat {deli[1]}'])
+                    passedIn = True
+                    break
+            if not passedIn:
+                debug.append([logging.WARN, f'Input HDFS path {delmatToCheckPath} from {configFile} is not in delmat files, file made by: {author}'])
 
     # Does basically the same as input, but checkes ALL outputs for HDFS and raises error if path not found in DELMAT
     outputs = config.get('output', [])
@@ -224,7 +228,7 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
             outputHDFS = output.get('output_Path', None)
             if outputHDFS is None:
                 continue
-            hdfsPath = os.path.normpath(os.path.expandvars(outputHDFS).replace('"', '').replace('\\', '/').replace('//', '/'))
+            hdfsPath = os.path.normpath(os.path.expandvars(outputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
             debug.append([logging.DEBUG, f'Output HDFS path: {hdfsPath}'])
             answerOut = subprocess.run(['hadoop', 'fs', '-ls', delmatToCheckPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             ansOut = answerOut.stdout.decode('utf-8').strip()
@@ -247,7 +251,7 @@ tre = []
 for item in range(toDo.qsize()):
     tre.append(toDo.get())
 
-with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
     executor.map(main, tre)
 
 logger.info('DONE!')
