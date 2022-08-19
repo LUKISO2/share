@@ -1,16 +1,12 @@
 #!/opt/cloudera/parcels/Anaconda/envs/python36/bin/python
-from array import array
-import concurrent.futures
 import logging.handlers
 import configparser
 import subprocess
 import pyhocon
 import logging
 import queue
-import time
 import sys
 import re
-import io
 import os
 
 # Hand changable variables
@@ -76,7 +72,7 @@ errHandler.setLevel(logging.ERROR)
 errHandler.setFormatter(formater)
 errHandler.setLevel(max(MIN_LEVEL, logging.ERROR))
 
-rotatingHandler = logging.handlers.TimedRotatingFileHandler(os.path.join(logDir, 'app.log'), when='d', interval=30, backupCount=1)
+rotatingHandler = logging.handlers.TimedRotatingFileHandler(os.path.join(logDir, logFile), when='d', interval=30, backupCount=1)
 rotatingHandler.setLevel(logging.DEBUG)
 rotatingHandler.setFormatter(formater)
 
@@ -230,7 +226,7 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
                 continue
             hdfsPath = os.path.normpath(os.path.expandvars(outputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
             debug.append([logging.DEBUG, f'Output HDFS path: {hdfsPath}'])
-            answerOut = subprocess.run(['hadoop', 'fs', '-ls', delmatToCheckPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            answerOut = subprocess.run(['hadoop', 'fs', '-ls', hdfsPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             ansOut = answerOut.stdout.decode('utf-8').strip()
             if not re.search('/p_', ansOut, flags=re.M|re.S):
                 debug.append([logging.INFO, f'No p_* folder found on HDFS path: {ansOut}'])
@@ -247,11 +243,7 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
     for toLog in debug:
         logger.log(toLog[0], toLog[1])
     
-tre = []
 for item in range(toDo.qsize()):
-    tre.append(toDo.get())
-
-with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-    executor.map(main, tre)
+    main(toDo.get())
 
 logger.info('DONE!')
