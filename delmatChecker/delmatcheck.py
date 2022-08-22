@@ -10,7 +10,7 @@ import re
 import os
 
 # Hand changable variables
-version = '1.2.2'
+version = '1.2.3'
 delmatExtended = []
 toDo = queue.Queue()
 
@@ -144,7 +144,7 @@ for item in os.listdir(delmatFolder):
                             value = value.replace('"', '').replace('\\', '/').replace('//', '/')
                             if key == 'HDFS_FEED_DIRECTORY':
                                 delmatExtended.append([os.path.normpath(value), os.path.join(os.path.basename(os.path.dirname(path)), os.path.basename(path))])
-                                logger.debug(f'Found DELMAT path in file: {delmatExtended[-1][0]}, in {delmatExtended[-1][1]}')
+                                logger.info(f'Found DELMAT path in file: {delmatExtended[-1][0]}, in {delmatExtended[-1][1]}')
             except Exception as e:
                 logger.error(f'Failed to open DELMAT {path}')
 
@@ -163,7 +163,7 @@ for item in os.listdir(os.environ['CONF_ROOT']):
 def main(configFile, delmatExtended=delmatExtended, logger=logger):
     # Loads required variables into env to be used by parser and logging
     debug = []
-    debug.append([logging.DEBUG, 'Loading config file: ' + configFile])
+    debug.append([logging.INFO, 'Working with config file: ' + configFile])
     try:
         config = pyhocon.ConfigFactory.parse_file(configFile)
     except Exception as e:
@@ -190,11 +190,9 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
             logger.log(toLog[0], toLog[1])
         return
     direction = config.get('feed_Direction', None)
-    debug.append([logging.INFO, f'feed_Direction: {str(direction)}, feed_System: {feedSystem}, feed_Name: {feedName}, feed_Version: {feedVersion}'])
     failMail = config.get('feed_FailMail', None)
-    debug.append([logging.INFO, 'feed_FailMail: ' + str(failMail)])
     author = config.get('feed_Author', 'Unknown')
-    debug.append([logging.INFO, 'feed_Author: ' + str(author)])
+    debug.append([logging.INFO, f'feed_Direction: {str(direction)}, feed_System: {feedSystem}, feed_Name: {feedName}, feed_Version: {feedVersion}, feed_FailMail: {failMail}, feed_Author: {author}'])
 
     # Loads input from files, check for LocalFS input_Type and if they archive to HDFS, if so it check for their existence in DELMAT, raises error if not found
     inputHDFS = config.get('input.archive_HDFS_Path', None)
@@ -206,7 +204,7 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
         passedIn = False
         if not re.search('/p_', ansInp, flags=re.M|re.S):
             debug.append([logging.DEBUG, f'No input p_* folder found on HDFS path: {ansInp}'])
-            debug.append([logging.INFO, 'No input p_* folder found, skipping'])
+            debug.append([logging.INFO, f'No input p_* folder found on: {delmatToCheckPath}, skipping'])
         else:
             for deli in delmatExtended:
                 if re.search(deli[0], delmatToCheckPath):
