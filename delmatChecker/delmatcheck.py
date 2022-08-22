@@ -10,7 +10,7 @@ import re
 import os
 
 # Hand changable variables
-version = '1.2.1'
+version = '1.2.2'
 delmatExtended = []
 toDo = queue.Queue()
 
@@ -128,7 +128,6 @@ check(loadEnviron(os.path.join(os.environ['COMMONCONF_DIR'], f'general_{os.envir
 # Loads all paths that DELMAT periodically checks
 for item in os.listdir(delmatFolder):
     if os.path.isdir(os.path.join(delmatFolder, item)):
-        logger.debug(f'Found delmat folder: {item}')
         pathe = os.path.join(delmatFolder, item)
         for item2 in os.listdir(pathe):
             path = os.path.join(pathe, item2)
@@ -145,7 +144,7 @@ for item in os.listdir(delmatFolder):
                             value = value.replace('"', '').replace('\\', '/').replace('//', '/')
                             if key == 'HDFS_FEED_DIRECTORY':
                                 delmatExtended.append([os.path.normpath(value), os.path.join(os.path.basename(os.path.dirname(path)), os.path.basename(path))])
-                                logger.debug(f'Found DELMAT folder: {delmatExtended[-1][0]}, in {delmatExtended[-1][1]}')
+                                logger.debug(f'Found DELMAT path in file: {delmatExtended[-1][0]}, in {delmatExtended[-1][1]}')
             except Exception as e:
                 logger.error(f'Failed to open DELMAT {path}')
 
@@ -206,7 +205,8 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
         ansInp = answerInp.stdout.decode('utf-8').strip()
         passedIn = False
         if not re.search('/p_', ansInp, flags=re.M|re.S):
-            debug.append([logging.INFO, f'No p_* folder found on HDFS path: {ansInp}'])
+            debug.append([logging.DEBUG, f'No input p_* folder found on HDFS path: {ansInp}'])
+            debug.append([logging.INFO, 'No input p_* folder found, skipping'])
         else:
             for deli in delmatExtended:
                 if re.search(deli[0], delmatToCheckPath):
@@ -229,7 +229,8 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
             answerOut = subprocess.run(['hadoop', 'fs', '-ls', hdfsPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             ansOut = answerOut.stdout.decode('utf-8').strip()
             if not re.search('/p_', ansOut, flags=re.M|re.S):
-                debug.append([logging.INFO, f'No p_* folder found on HDFS path: {ansOut}'])
+                debug.append([logging.DEBUG, f'No output p_* folder found on HDFS path: {ansOut}'])
+                debug.append([logging.INFO, 'No output p_* folder found, skipping'])
                 continue
             passedOut = False
             for deli in delmatExtended:
