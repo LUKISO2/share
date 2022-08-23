@@ -9,7 +9,7 @@ import re
 import os
 
 # Hand changable variables
-version = '1.2.3'
+version = '1.0.0'
 configs = []
 csv = []
 
