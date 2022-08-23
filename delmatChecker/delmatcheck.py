@@ -1,4 +1,5 @@
 #!/opt/cloudera/parcels/Anaconda/envs/python36/bin/python
+from multiprocessing import Pool
 import logging.handlers
 import configparser
 import subprocess
@@ -242,7 +243,11 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
     for toLog in debug:
         logger.log(toLog[0], toLog[1])
     
+doWork = []
 for item in range(toDo.qsize()):
-    main(toDo.get())
+    doWork.append(toDo.get())
+
+with Pool(processes=4) as pool:
+    pool.imap_unordered(main, doWork)
 
 logger.info('DONE!')
