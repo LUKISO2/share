@@ -43,6 +43,7 @@ else:
     tmpLog.error('Configuration file not found')
     sys.exit(2)
 
+# Few basic checks
 if logFile is None:
     tmpLog.error('No log_file name specified, using default: app.log')
     logFile = 'app.log'
@@ -125,7 +126,7 @@ def loadEnviron(config):
                     value = os.path.expandvars(value)
                     value = value.replace('"', '').replace('\\', '/').replace('//', '/')
                     os.environ[key] = str(value)
-                    logger.debug(f'LOADED: "{key}={value}"')
+                    logger.debug(f'loaded: "{key}={value}"')
                     toReturn.append([key, value])
     except Exception as e:
         logger.error(f'{config} Failed to load: {e}')
@@ -138,7 +139,6 @@ def check(checki):
             check(loadEnviron(item[1]))
 check(loadEnviron(os.path.join(os.environ['COMMONCONF_DIR'], f'general_{os.environ["DATAINGEST_ENV"]}.conf')))
 
-# Data processing
 # Loads all files and filters out the relevant ones
 for item in os.listdir(os.environ['CONF_ROOT']):
     if os.path.isdir(os.path.join(os.environ['CONF_ROOT'], item)):
@@ -149,10 +149,11 @@ for item in os.listdir(os.environ['CONF_ROOT']):
                 continue
             if not configFile.endswith('.conf') or re.search('jaas.*.conf', configFile):
                 continue
+            logger.debug(f'config file passed and will be processed: {configFile}')
             configs.append(configFile)
 
 def main(configFile, logger=logger, csv=csv):
-    # Loads required variables into env to be used by parser and logging
+    # Loads required variables to be used later by parser and logging
     something = False
     debug = []
     debug.append([logging.INFO, 'Working with config file: ' + configFile])
@@ -186,14 +187,14 @@ def main(configFile, logger=logger, csv=csv):
     author = config.get('feed_Author', 'Unknown')
     debug.append([logging.INFO, f'feed_Direction: {str(direction)}, feed_System: {feedSystem}, feed_Name: {feedName}, feed_Version: {feedVersion}, feed_FailMail: {failMail}, feed_Author: {author}'])
 
-    # Loads input from files and checks for LocalFS input_Type
-    inputType = config.get('input_Type', None)
+    # Loads input from files and checks for LocalFS/JDBC input_Type, if found it will add the file to the csv
+    inputType = config.get('input.input_Type', None)
 
     if inputType == 'LocalFS':
         inputPath = config.get('input.input_Path', None)
         if inputPath is not None:
             delmatToCheckPath = os.path.normpath(os.path.expandvars(inputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
-            debug.append([logging.INFO, f'Found input LocalFS path, adding to csv: {delmatToCheckPath}'])
+            debug.append([logging.WARN, f'Found input LocalFS path, adding to csv: {delmatToCheckPath}'])
             csv.append([os.path.basename(os.path.normpath(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'LocalFS', delmatToCheckPath])
             something = True
 
@@ -201,11 +202,11 @@ def main(configFile, logger=logger, csv=csv):
         inputPath = config.get('input.input_JDBC_URL', None)
         if inputPath is not None:
             delmatToCheckPath = os.path.normpath(os.path.expandvars(inputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
-            debug.append([logging.INFO, f'Found input JDBC path, adding to csv: {delmatToCheckPath}'])
+            debug.append([logging.WARN, f'Found input JDBC path, adding to csv: {delmatToCheckPath}'])
             csv.append([os.path.basename(os.path.normpath(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'JDBC', delmatToCheckPath])
             something = True
 
-    # Does basically the same as input, but checkes ALL outputs for HDFS and raises error if path not found in DELMAT
+    # Does basically the same as input, but checkes ALL outputs for LocalFS/JDBC and if found adds them to csv
     outputs = config.get('output', [])
     for output in outputs:
         outputType = output.get('output_Type', None)
@@ -214,7 +215,7 @@ def main(configFile, logger=logger, csv=csv):
             outputHDFS = output.get('output_Path', None)
             if outputHDFS is not None:
                 outputPath = os.path.normpath(os.path.expandvars(outputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
-                debug.append([logging.INFO, f'Found output LocalFS path, adding to csv: {outputPath}'])
+                debug.append([logging.WARN, f'Found output LocalFS path, adding to csv: {outputPath}'])
                 csv.append([os.path.basename(os.path.normpath(configFile)), 'output', feedSystem, feedName, feedVersion, author, 'LocalFS', outputPath])
                 something = True
 
@@ -222,7 +223,7 @@ def main(configFile, logger=logger, csv=csv):
             outputPath = output.get('output_JDBC_URL', None)
             if outputPath is not None:
                 outputPath = os.path.normpath(os.path.expandvars(outputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
-                debug.append([logging.INFO, f'Found output JDBC path, adding to csv: {outputPath}'])
+                debug.append([logging.WARN, f'Found output JDBC path, adding to csv: {outputPath}'])
                 csv.append([os.path.basename(os.path.normpath(configFile)), 'output', feedSystem, feedName, feedVersion, author, 'JDBC', outputPath])
                 something = True
 
@@ -236,6 +237,6 @@ def main(configFile, logger=logger, csv=csv):
 for item in configs:
     main(item)
 
-pandas.DataFrame(csv, columns=['config name', 'direction', 'feed_System', 'feed_Name', 'feed_Version', 'feed_Author', 'type', 'path']).to_csv(csvFile, index=False)
+pandas.DataFrame(csv, columns=['config_Name', 'direction', 'feed_System', 'feed_Name', 'feed_Version', 'feed_Author', 'type', 'path']).to_csv(csvFile, index=False)
 
 logger.info('DONE!')
