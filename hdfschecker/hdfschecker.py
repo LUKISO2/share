@@ -219,7 +219,7 @@ def main(configFile, logger=logger, csv=csv):
             if outputPath is not None:
                 outputPath = os.path.normpath(os.path.expandvars(outputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
                 debug.append([logging.INFO, f'Found output JDBC path, adding to csv: {outputPath}'])
-                csv.append([os.path.basename(os.path.normpath(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'JDBC', outputPath])
+                csv.append([os.path.basename(os.path.normpath(configFile)), 'output', feedSystem, feedName, feedVersion, author, 'JDBC', outputPath])
                 something = True
 
     if not something:
