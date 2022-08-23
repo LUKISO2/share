@@ -1,18 +1,17 @@
 #!/opt/cloudera/parcels/Anaconda/envs/python36/bin/python
 import logging.handlers
 import configparser
-import subprocess
 import pyhocon
 import logging
-import queue
+import pandas
 import sys
 import re
 import os
 
 # Hand changable variables
 version = '1.2.3'
-delmatExtended = []
-toDo = queue.Queue()
+configs = []
+csv = []
 
 #temporaly logging before config
 formater = logging.Formatter('%(asctime)s %(name)s$ [%(thread)d] %(levelname)s %(message)s')
@@ -37,10 +36,23 @@ if confRoot is None:
 if os.path.isfile(os.path.join(confRoot, config_file)):
     config = configparser.ConfigParser()
     config.read(os.path.join(confRoot, config_file))
-    debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else None
+    debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else 'debug'
     logFile = config.get(apsEnv, 'log_file') if 'log_file' in config.options(apsEnv) else None
+    csvFile = config.get(apsEnv, 'csv_output') if 'csv_output' in config.options(apsEnv) else None
 else:
     tmpLog.error('Configuration file not found')
+    sys.exit(2)
+
+if logFile is None:
+    tmpLog.error('No log_file name specified, using default: app.log')
+    logFile = 'app.log'
+
+if csvFile is None:
+    tmpLog.error('No csv_output file specified, using default: app.csv')
+    sys.exit(2)
+
+if not os.path.isdir(os.path.dirname(os.path.normpath(csvFile))):
+    tmpLog.error('CSV output directory does not exist')
     sys.exit(2)
 
 # Set logging
@@ -83,6 +95,16 @@ logger.addHandler(rotatingHandler)
 # Automatic mail reporting requirement
 logger.info(f'Application: delmatchecker.py, Version: {version}, Build: Unknown')
 
+# Sets basic and missing env variables
+os.environ['CONF_DIR'] = os.environ['CONF_ROOT']
+logger.debug(f'LOADED: CONF_DIR={os.environ["CONF_DIR"]}')
+os.environ['COMMONCONF_DIR'] = f'{os.environ["CONF_ROOT"]}/common'
+logger.debug(f'LOADED: COMMONCONF_DIR={os.environ["COMMONCONF_DIR"]}')
+os.environ['SQL_DIR'] = f'{os.environ["CONF_ROOT"]}/sql'
+logger.debug(f'LOADED: SQL_DIR={os.environ["SQL_DIR"]}')
+os.environ['COMMONSQL_DIR'] = f'{os.environ["SQL_DIR"]}/common'
+logger.debug(f'LOADED: COMMONSQL_DIR={os.environ["COMMONSQL_DIR"]}')
+
 # Loads enviroment vars from config file
 def loadEnviron(config):
     toReturn = []
@@ -105,18 +127,6 @@ def loadEnviron(config):
         logger.error(f'{config} Failed to load: {e}')
     return toReturn
 
-# Sets basic and missing env variables
-os.environ['CONF_DIR'] = os.environ['CONF_ROOT']
-logger.debug(f'LOADED: CONF_DIR={os.environ["CONF_DIR"]}')
-os.environ['COMMONCONF_DIR'] = f'{os.environ["CONF_ROOT"]}/common'
-logger.debug(f'LOADED: COMMONCONF_DIR={os.environ["COMMONCONF_DIR"]}')
-os.environ['SQL_DIR'] = f'{os.environ["CONF_ROOT"]}/sql'
-logger.debug(f'LOADED: SQL_DIR={os.environ["SQL_DIR"]}')
-os.environ['COMMONSQL_DIR'] = f'{os.environ["SQL_DIR"]}/common'
-logger.debug(f'LOADED: COMMONSQL_DIR={os.environ["COMMONSQL_DIR"]}')
-
-delmatFolder = os.environ['APPL_DIR'].replace('DATAINGEST', 'DELMAT')
-
 def check(checki):
     for item in checki:
         if item[0] == 'config_File':
@@ -125,29 +135,6 @@ def check(checki):
 check(loadEnviron(os.path.join(os.environ['COMMONCONF_DIR'], f'general_{os.environ["DATAINGEST_ENV"]}.conf')))
 
 # Data processing
-# Loads all paths that DELMAT periodically checks
-for item in os.listdir(delmatFolder):
-    if os.path.isdir(os.path.join(delmatFolder, item)):
-        pathe = os.path.join(delmatFolder, item)
-        for item2 in os.listdir(pathe):
-            path = os.path.join(pathe, item2)
-            if not os.path.isfile(path):
-                continue
-            try:
-                with open(path, 'r') as f:
-                    for line in f.readlines():
-                        if '=' in line:
-                            splited = line.split('=')
-                            key = splited[0].strip()
-                            value = splited[-1].strip()
-                            value = os.path.expandvars(value)
-                            value = value.replace('"', '').replace('\\', '/').replace('//', '/')
-                            if key == 'HDFS_FEED_DIRECTORY':
-                                delmatExtended.append([os.path.normpath(value), os.path.join(os.path.basename(os.path.dirname(path)), os.path.basename(path))])
-                                logger.info(f'Found DELMAT path in file: {delmatExtended[-1][0]}, in {delmatExtended[-1][1]}')
-            except Exception as e:
-                logger.error(f'Failed to open DELMAT {path}')
-
 # Loads all files and filters out the relevant ones
 for item in os.listdir(os.environ['CONF_ROOT']):
     if os.path.isdir(os.path.join(os.environ['CONF_ROOT'], item)):
@@ -158,10 +145,11 @@ for item in os.listdir(os.environ['CONF_ROOT']):
                 continue
             if not configFile.endswith('.conf') or re.search('jaas.*.conf', configFile):
                 continue
-            toDo.put(configFile)
+            configs.append(configFile)
 
-def main(configFile, delmatExtended=delmatExtended, logger=logger):
+def main(configFile, logger=logger, csv=csv):
     # Loads required variables into env to be used by parser and logging
+    something = False
     debug = []
     debug.append([logging.INFO, 'Working with config file: ' + configFile])
     try:
@@ -194,43 +182,56 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
     author = config.get('feed_Author', 'Unknown')
     debug.append([logging.INFO, f'feed_Direction: {str(direction)}, feed_System: {feedSystem}, feed_Name: {feedName}, feed_Version: {feedVersion}, feed_FailMail: {failMail}, feed_Author: {author}'])
 
-    # Loads input from files, check for LocalFS input_Type and if they archive to HDFS, if so it check for their existence in DELMAT, raises error if not found
-    inputHDFS = config.get('input.archive_HDFS_Path', None)
-    if inputHDFS is not None:
-        delmatToCheckPath = os.path.normpath(os.path.expandvars(inputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
-        debug.append([logging.DEBUG, f'Input HDFS path: {delmatToCheckPath}'])
-        passedIn = False
-        for deli in delmatExtended:
-            if re.search(deli[0], delmatToCheckPath):
-                debug.append([logging.INFO, f'Input config {configFile} found in delmat {deli[1]}'])
-                passedIn = True
-                break
-        if not passedIn:
-            debug.append([logging.WARN, f'Input HDFS path {delmatToCheckPath} from {configFile} is not in delmat files, file made by: {author}'])
+    # Loads input from files and checks for LocalFS input_Type
+    inputType = config.get('input_Type', None)
+
+    if inputType == 'LocalFS':
+        inputPath = config.get('input.input_Path', None)
+        if inputPath is not None:
+            delmatToCheckPath = os.path.normpath(os.path.expandvars(inputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
+            debug.append([logging.INFO, f'Found input LocalFS path, adding to csv: {delmatToCheckPath}'])
+            csv.append([os.path.basename(os.path.normpath(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'LocalFS', delmatToCheckPath])
+            something = True
+
+    if inputType == 'JDBC':
+        inputPath = config.get('input.input_JDBC_URL', None)
+        if inputPath is not None:
+            delmatToCheckPath = os.path.normpath(os.path.expandvars(inputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
+            debug.append([logging.INFO, f'Found input JDBC path, adding to csv: {delmatToCheckPath}'])
+            csv.append([os.path.basename(os.path.normpath(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'JDBC', delmatToCheckPath])
+            something = True
 
     # Does basically the same as input, but checkes ALL outputs for HDFS and raises error if path not found in DELMAT
     outputs = config.get('output', [])
     for output in outputs:
         outputType = output.get('output_Type', None)
-        if outputType == 'HDFS':
+
+        if outputType == 'LocalFS':
             outputHDFS = output.get('output_Path', None)
-            if outputHDFS is None:
-                continue
-            hdfsPath = os.path.normpath(os.path.expandvars(outputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
-            debug.append([logging.DEBUG, f'Output HDFS path: {hdfsPath}'])
-            passedOut = False
-            for deli in delmatExtended:
-                if re.search(deli[0], hdfsPath):
-                    debug.append([logging.INFO, f'Output config {configFile} found in delmat {deli[1]}'])
-                    passedOut = True
-                    break
-            if not passedOut:
-                debug.append([logging.WARN, f'Output HDFS path {hdfsPath} from {configFile} is not in delmat files, file made by: {author}'])
+            if outputHDFS is not None:
+                outputPath = os.path.normpath(os.path.expandvars(outputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
+                debug.append([logging.INFO, f'Found output LocalFS path, adding to csv: {outputPath}'])
+                csv.append([os.path.basename(os.path.normpath(configFile)), 'output', feedSystem, feedName, feedVersion, author, 'LocalFS', outputPath])
+                something = True
+
+        if outputType == 'JDBC':
+            outputPath = output.get('output_JDBC_URL', None)
+            if outputPath is not None:
+                outputPath = os.path.normpath(os.path.expandvars(outputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
+                debug.append([logging.INFO, f'Found output JDBC path, adding to csv: {outputPath}'])
+                csv.append([os.path.basename(os.path.normpath(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'JDBC', outputPath])
+                something = True
+
+    if not something:
+        debug.append([logging.INFO, 'No input or output found in config file: ' + configFile])
+        csv.append([os.path.basename(os.path.normpath(configFile)), 'both', feedSystem, feedName, feedVersion, author, 'None', 'None'])
 
     for toLog in debug:
         logger.log(toLog[0], toLog[1])
     
-for item in range(toDo.qsize()):
-    main(toDo.get())
+for item in configs:
+    main(item)
+
+pandas.DataFrame(csv, columns=['config name', 'direction', 'feed_System', 'feed_Name', 'feed_Version', 'feed_Author', 'type', 'path']).to_csv(csvFile, index=False)
 
 logger.info('DONE!')
