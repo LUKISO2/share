@@ -93,11 +93,6 @@ except ValueError:
 folders = subprocess.run(f"hdfs dfs -ls -R {mainPath} | grep '^d' | grep -e '/pending/' -e '/reject/'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 ansInp = folders.stdout.decode('utf-8').strip()
 
-for line in ansInp.split('\n'):
-    lines = line.split(' ')
-    finalPaths.append(lines[-1])
-finalPaths = [*set(os.path.dirname(x) for x in finalPaths)]
-
 # Checks if the files are older than the age variable and logs them
 def main(line, age=age):
     logger.debug(f'Checking {line}')
@@ -112,12 +107,9 @@ def main(line, age=age):
     if estamp > time.time() - age:
         logger.debug(f'Skipping path because its too new: {lines[-1]}')
         return
-    logger.warn(f'Found old folder with files: {lines[-1]}')
+    logger.warn(f'Found old folder: {lines[-1]}')
 
-# Prepares paths to be checked
-datesr = subprocess.run(f"hdfs dfs -ls -R {mainPath} | grep -E '{'$|'.join(finalPaths)}$'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-dates = datesr.stdout.decode('utf-8').strip()
-for line in dates.split('\n'):
+for line in ansInp.split('\n'):
     main(line)
 
 logger.info('DONE!')
