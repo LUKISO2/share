@@ -100,10 +100,15 @@ finalPaths = [*set(os.path.dirname(x) for x in finalPaths)]
 
 # Checks if the files are older than the age variable and logs them
 def main(line, age=age):
+    logger.debug(f'Checking {line}')
     lines = line.strip().split(' ')
-    timen = f'{lines[16]} {lines[17]}'
+    timen = f'{lines[-3]} {lines[-2]}'
     logger.debug(f'Parsing time: {timen}')
-    estamp = time.mktime(datetime.strptime(timen, '%Y-%m-%d %H:%M').timetuple())
+    try:
+        estamp = time.mktime(datetime.strptime(timen, '%Y-%m-%d %H:%M').timetuple())
+    except ValueError:
+        logger.error(f'Invalid time format found: {timen} in line: {line}')
+        return
     if estamp > time.time() - age:
         logger.debug(f'Skipping path because its too new: {lines[-1]}')
         return
