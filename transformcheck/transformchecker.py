@@ -36,9 +36,9 @@ if confRoot is None:
 if os.path.isfile(os.path.join(confRoot, config_file)):
     config = configparser.ConfigParser()
     config.read(os.path.join(confRoot, config_file))
-    debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else None
-    logFile = config.get(apsEnv, 'log_file') if 'log_file' in config.options(apsEnv) else None
-    age = config.get(apsEnv, 'age') if 'age' in config.options(apsEnv) else None
+    debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else None # Can be [debug, info, warning, error, critical]
+    logFile = config.get(apsEnv, 'log_file') if 'log_file' in config.options(apsEnv) else None # Should be only a file name
+    age = config.get(apsEnv, 'age') if 'age' in config.options(apsEnv) else None # Files older than this will be WARNed instead of INFOed; int in seconds
     mainPath = config.get(apsEnv, 'hdfs_path') if 'hdfs_path' in config.options(apsEnv) else None
 else:
     tmpLog.error('Configuration file not found')
@@ -98,6 +98,7 @@ for line in ansInp.split('\n'):
     finalPaths.append(lines[-1])
 finalPaths = [*set(os.path.dirname(x) for x in finalPaths)]
 
+# Checks if the files are older than the age variable and logs them
 def main(line, age=age):
     lines = line.strip().split(' ')
     timen = f'{lines[16]} {lines[17]}'
@@ -108,9 +109,9 @@ def main(line, age=age):
         return
     logger.warn(f'Found old folder with files: {lines[-1]}')
 
+# Prepares paths to be checked
 datesr = subprocess.run(f"hdfs dfs -ls -R {mainPath} | grep -E '{'$|'.join(finalPaths)}$'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 dates = datesr.stdout.decode('utf-8').strip()
-
 for line in dates.split('\n'):
     main(line)
 
