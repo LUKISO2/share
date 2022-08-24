@@ -151,4 +151,8 @@ for path in unsortedFinalPaths:
     logger.info(f'Checking path: {path}')
     finalPaths.append(path)
 
+logger.debug(f'Final paths: {finalPaths}')
+finalPaths = [*set(os.path.dirname(x) for x in finalPaths)]
+logger.debug(f'Finallly final paths: {finalPaths}')
+
 logger.info('DONE!')

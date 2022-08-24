@@ -9,7 +9,7 @@ import re
 import os
 
 # Hand changable variables
-version = '1.0.0'
+version = '1.0.1'
 configs = []
 csv = []
 
@@ -158,6 +158,7 @@ def main(configFile, logger=logger, csv=csv):
     debug = []
     debug.append([logging.INFO, 'Working with config file: ' + configFile])
     try:
+        configFile = os.path.normpath(configFile)
         config = pyhocon.ConfigFactory.parse_file(configFile)
     except Exception as e:
         debug.append([logging.WARN, f"{configFile} is either not a valid hocon config file or pyhocon wasn't able to resolve a global variable, error: {e}"])
@@ -195,7 +196,7 @@ def main(configFile, logger=logger, csv=csv):
         if inputPath is not None:
             delmatToCheckPath = os.path.normpath(os.path.expandvars(inputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
             debug.append([logging.WARN, f'Found input LocalFS path, adding to csv: {delmatToCheckPath}'])
-            csv.append([os.path.basename(os.path.normpath(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'LocalFS', delmatToCheckPath])
+            csv.append([os.path.join(os.path.basename(os.path.dirname(configFile)), os.path.basename(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'LocalFS', delmatToCheckPath])
             something = True
 
     if inputType == 'JDBC':
@@ -203,7 +204,7 @@ def main(configFile, logger=logger, csv=csv):
         if inputPath is not None:
             delmatToCheckPath = os.path.normpath(os.path.expandvars(inputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
             debug.append([logging.WARN, f'Found input JDBC path, adding to csv: {delmatToCheckPath}'])
-            csv.append([os.path.basename(os.path.normpath(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'JDBC', delmatToCheckPath])
+            csv.append([os.path.join(os.path.basename(os.path.dirname(configFile)), os.path.basename(configFile)), 'input', feedSystem, feedName, feedVersion, author, 'JDBC', delmatToCheckPath])
             something = True
 
     # Does basically the same as input, but checkes ALL outputs for LocalFS/JDBC and if found adds them to csv
@@ -216,7 +217,7 @@ def main(configFile, logger=logger, csv=csv):
             if outputHDFS is not None:
                 outputPath = os.path.normpath(os.path.expandvars(outputHDFS).replace('"', '').replace('\\', '/').replace('//', '/').replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
                 debug.append([logging.WARN, f'Found output LocalFS path, adding to csv: {outputPath}'])
-                csv.append([os.path.basename(os.path.normpath(configFile)), 'output', feedSystem, feedName, feedVersion, author, 'LocalFS', outputPath])
+                csv.append([os.path.join(os.path.basename(os.path.dirname(configFile)), os.path.basename(configFile)), 'output', feedSystem, feedName, feedVersion, author, 'LocalFS', outputPath])
                 something = True
 
         if outputType == 'JDBC':
@@ -224,12 +225,12 @@ def main(configFile, logger=logger, csv=csv):
             if outputPath is not None:
                 outputPath = os.path.normpath(os.path.expandvars(outputPath).replace('"', '').replace('\\', '/').replace('//', '/').split('/p_')[0].replace(r'${feed_System}', feedSystem).replace(r'${feed_Name}', feedName).replace(r'${feed_Version}', feedVersion))
                 debug.append([logging.WARN, f'Found output JDBC path, adding to csv: {outputPath}'])
-                csv.append([os.path.basename(os.path.normpath(configFile)), 'output', feedSystem, feedName, feedVersion, author, 'JDBC', outputPath])
+                csv.append([os.path.join(os.path.basename(os.path.dirname(configFile)), os.path.basename(configFile)), 'output', feedSystem, feedName, feedVersion, author, 'JDBC', outputPath])
                 something = True
 
     if not something:
         debug.append([logging.INFO, 'No input or output found in config file: ' + configFile])
-        csv.append([os.path.basename(os.path.normpath(configFile)), 'both', feedSystem, feedName, feedVersion, author, 'None', 'None'])
+        csv.append([os.path.join(os.path.basename(os.path.dirname(configFile)), os.path.basename(configFile)), 'both', feedSystem, feedName, feedVersion, author, 'None', 'None'])
 
     for toLog in debug:
         logger.log(toLog[0], toLog[1])
