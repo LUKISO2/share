@@ -56,10 +56,6 @@ if not os.path.isdir(os.path.dirname(os.path.normpath(csvFile))):
     tmpLog.error('CSV output directory does not exist')
     sys.exit(2)
 
-if not re.search('.csv$', csvFile):
-    tmpLog.error('CSV output file must have .csv extension, using default filename: app.csv')
-    csvFile = os.path.join(os.path.dirname(os.path.normpath(csvFile)), 'app.csv')
-
 # Set logging
 class MaxLevelFilter(logging.Filter):
     def __init__(self, level):

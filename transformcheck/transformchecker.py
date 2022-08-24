@@ -1,9 +1,11 @@
 #!/opt/cloudera/parcels/Anaconda/envs/python36/bin/python
+from datetime import datetime
 from itertools import groupby
 import logging.handlers
 import configparser
 import subprocess
 import logging
+import time
 import sys
 import re
 import os
@@ -150,9 +152,15 @@ for path in unsortedFinalPaths:
         continue
     logger.info(f'Checking path: {path}')
     finalPaths.append(path)
-
-logger.debug(f'Final paths: {finalPaths}')
 finalPaths = [*set(os.path.dirname(x) for x in finalPaths)]
-logger.debug(f'Finallly final paths: {finalPaths}')
+
+datesr = subprocess.run(f"hdfs dfs -ls -R {mainPath} | grep -E '{'$|'.join(finalPaths)}$'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+dates = datesr.stdout.decode('utf-8').strip()
+
+for line in dates.split('\n'):
+    lines = line.strip().split(' ')
+    timen = f'{lines[16]} {lines[17]}'
+    logger.debug(f'Parsing time: {timen}')
+    estamp = time.mktime(datetime.strptime(timen, '%Y-%m-%d %H:%M').timetuple())
 
 logger.info('DONE!')
