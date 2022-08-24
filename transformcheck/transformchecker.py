@@ -1,13 +1,11 @@
 #!/opt/cloudera/parcels/Anaconda/envs/python36/bin/python
 from datetime import datetime
-from itertools import groupby
 import logging.handlers
 import configparser
 import subprocess
 import logging
 import time
 import sys
-import re
 import os
 
 # Hand changable variables
