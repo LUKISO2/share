@@ -11,8 +11,7 @@ import re
 import os
 
 # Hand changable variables
-version = '0.0.1'
-mainPath = '/user/havlasekj/data/transform'
+version = '2.0.0'
 unsortedFinalPaths = []
 finalPaths = []
 pathway = []
@@ -42,6 +41,7 @@ if os.path.isfile(os.path.join(confRoot, config_file)):
     debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else None
     logFile = config.get(apsEnv, 'log_file') if 'log_file' in config.options(apsEnv) else None
     age = config.get(apsEnv, 'age') if 'age' in config.options(apsEnv) else None
+    mainPath = config.get(apsEnv, 'hdfs_path') if 'hdfs_path' in config.options(apsEnv) else None
 else:
     tmpLog.error('Configuration file not found')
     sys.exit(2)
@@ -86,81 +86,34 @@ logger.addHandler(rotatingHandler)
 # Automatic mail reporting requirement
 logger.info(f'Application: transformchecker.py, Version: {version}, Build: Unknown')
 
+try: age = int(age)
+except ValueError:
+    logger.error('Invalid file age, make sure it is an integer value in seconds!')
+    sys.exit(2)
+
 # Loads all files and filters out the relevant ones
-folders = subprocess.run("hdfs dfs -ls -R %s | awk '{print $8}' | sed -e 's/[^-][^\/]*\//--/g' -e 's/^/ /' -e 's/-/|/'" % mainPath, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+folders = subprocess.run(f"hdfs dfs -ls -R {mainPath} | grep '^d' | grep -e '/pending/' -e '/reject/'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 ansInp = folders.stdout.decode('utf-8').strip()
 
-def countIt(stringr):
-    stringy = stringr.strip()
-    string = stringy.replace('|', '')
-    groups = groupby(string)
-    result = [(label, sum(1 for _ in group)) for label, group in groups]
-    return result[0][1] if result[0][0] == '-' else 0
-
-for x, line in enumerate(ansInp.split('\n')):
-    if x == 0:
-        if not line.strip().startswith('|'):
-            logger.error(f'Unble to parse the output of: "hdfs dfs -ls -R {mainPath}", the program/user is most likely missing permissions to read the folder: {line}')
-            sys.exit(2)
-        delNumber = countIt(line)
-        todelete = f'|{delNumber*"-"}'
-        base = [0, mainPath]
-        pathway.append(mainPath)
-    if not line.strip().startswith('|'):
-        logger.warning(f'Unable to parse line {x+1}: {line}')
-        continue
-    line = line.strip().replace(todelete, '')
-    dashes = countIt(line)
-    eline = line.replace(dashes*'-', '')
-    replacable = dashes//2
-    logger.debug(f'Parsing line on level {replacable}: {eline}')
-    if replacable > 3:
-        logger.info(f'Skipping line with data from too deep {x+1}: {eline}')
-        continue
-    if replacable == 0:
-        pathway = [mainPath, eline]
-        unsortedFinalPaths.append(os.path.join(*pathway))
-        logger.debug(f'On base {base[0]} added {base[1]}')
-        continue
-    if replacable == base[0]:
-        pathway = [*pathway[:replacable+1], eline]
-        unsortedFinalPaths.append(os.path.join(*pathway))
-        logger.debug(f'On base {base[0]} added {os.path.join(*pathway)}')
-        continue
-    if replacable > base[0]:
-        if replacable-base[0] != 1:
-            logger.error(f'Somehow a large problem occured, the tree reports a 2 folder jump!')
-            sys.exit(2)
-        pathway = [*pathway, eline]
-        unsortedFinalPaths.append(os.path.join(*pathway))
-        base = [replacable, os.path.join(*pathway)]
-        logger.debug(f'On base {base[0]} added {base[1]}')
-        continue
-    if replacable < base[0]:
-        pathway = [*pathway[:replacable+1], eline]
-        unsortedFinalPaths.append(os.path.join(*pathway))
-        base = [replacable, os.path.join(*pathway)]
-        logger.debug(f'On base {base[0]} added path {base[1]}')
-        continue
-
-def main(pathCheck, age=age):
-    pass
-
-for path in unsortedFinalPaths:
-    if not re.search('/pending/', path) and not re.search('/reject/', path):
-        logger.debug(f'Skipping path because its mising pending/reject in it: {path}')
-        continue
-    logger.info(f'Checking path: {path}')
-    finalPaths.append(path)
+for line in ansInp.split('\n'):
+    lines = line.split(' ')
+    finalPaths.append(lines[-1])
 finalPaths = [*set(os.path.dirname(x) for x in finalPaths)]
+
+def main(line, age=age):
+    lines = line.strip().split(' ')
+    timen = f'{lines[16]} {lines[17]}'
+    logger.debug(f'Parsing time: {timen}')
+    estamp = time.mktime(datetime.strptime(timen, '%Y-%m-%d %H:%M').timetuple())
+    if estamp > time.time() - age:
+        logger.debug(f'Skipping path because its too new: {lines[-1]}')
+        return
+    logger.warn(f'Found old folder with files: {lines[-1]}')
 
 datesr = subprocess.run(f"hdfs dfs -ls -R {mainPath} | grep -E '{'$|'.join(finalPaths)}$'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 dates = datesr.stdout.decode('utf-8').strip()
 
 for line in dates.split('\n'):
-    lines = line.strip().split(' ')
-    timen = f'{lines[16]} {lines[17]}'
-    logger.debug(f'Parsing time: {timen}')
-    estamp = time.mktime(datetime.strptime(timen, '%Y-%m-%d %H:%M').timetuple())
+    main(line)
 
 logger.info('DONE!')
