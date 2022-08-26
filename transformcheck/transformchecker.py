@@ -119,10 +119,10 @@ def main(line, age=age, deletePendingAge=deletePendingAge, deleteRejectAge=delet
     
     if estamp < time.time() - deletePendingAge and re.search('/pending/', line[-1]):
         logger.info(f'Path from pending is older than {deletePendingAge} seconds, added to delete list: {lines[-1]}')
-        return [lines[-1]]
+        return lines[-1]  
     if estamp < time.time() - deleteRejectAge and re.search('/reject/', lines[-1]):
         logger.info(f'Parh from reject is older than {deleteRejectAge} seconds, added to delete list: {lines[-1]}')
-        return [lines[-1]]
+        return lines[-1]
     if estamp > time.time() - age:
         logger.debug(f'Skipping path because its too new: {lines[-1]}')
         return
