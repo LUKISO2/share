@@ -10,7 +10,7 @@ import re
 import os
 
 # Hand changable variables
-version = '2.0.1'
+version = '2.1.1'
 unsortedFinalPaths = []
 finalPaths = []
 pathway = []
@@ -92,9 +92,12 @@ logger.addHandler(rotatingHandler)
 # Automatic mail reporting requirement
 logger.info(f'Application: transformchecker.py, Version: {version}, Build: Unknown')
 
-try: age = int(age)
+try:
+    age = int(age)
+    deletePendingAge = int(deletePendingAge)
+    deleteRejectAge = int(deleteRejectAge)
 except ValueError:
-    logger.error('Invalid file age, make sure it is an integer value in seconds!')
+    logger.error('Invalid config: "*age": make sure it is an integer value in seconds!')
     sys.exit(2)
 
 # Loads all files and filters out the relevant ones
