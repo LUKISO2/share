@@ -118,10 +118,10 @@ def main(line, age=age, deletePendingAge=deletePendingAge, deleteRejectAge=delet
         return
     
     if estamp < time.time() - deletePendingAge and re.search('/pending/', line[-1]):
-        logger.info(f'{lines[-1]} from pending is older than {deletePendingAge} seconds, added to delete list')
+        logger.info(f'Path from pending is older than {deletePendingAge} seconds, added to delete list: {lines[-1]}')
         return [lines[-1]]
     if estamp < time.time() - deleteRejectAge and re.search('/reject/', lines[-1]):
-        logger.info(f'{lines[-1]} from reject is older than {deleteRejectAge} seconds, added to delete list')
+        logger.info(f'Parh from reject is older than {deleteRejectAge} seconds, added to delete list: {lines[-1]}')
         return [lines[-1]]
     if estamp > time.time() - age:
         logger.debug(f'Skipping path because its too new: {lines[-1]}')
@@ -136,7 +136,7 @@ for line in ansInp.split('\n'):
 
 if len(toDel) > 0:
     logger.info(f'Found {len(toDel)} old folders, deleting...')
-    # subprocess.run(f"hdfs dfs -rm -r {' '.join(toDel)}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    subprocess.run(f"hdfs dfs -rm -r {' '.join(toDel)}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     for item in toDel:
         logger.debug(f'Deleted {item}')
     logger.info('Delete complete')
