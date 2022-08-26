@@ -6,6 +6,7 @@ import subprocess
 import logging
 import time
 import sys
+import re
 import os
 
 # Hand changable variables
@@ -13,6 +14,7 @@ version = '2.0.1'
 unsortedFinalPaths = []
 finalPaths = []
 pathway = []
+toDel = []
 
 #temporaly logging before config
 formater = logging.Formatter('%(asctime)s %(name)s$ [%(thread)d] %(levelname)s %(message)s')
@@ -38,10 +40,16 @@ if os.path.isfile(os.path.join(confRoot, config_file)):
     config.read(os.path.join(confRoot, config_file))
     debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else None # Can be [debug, info, warning, error, critical]
     logFile = config.get(apsEnv, 'log_file') if 'log_file' in config.options(apsEnv) else None # Should be only a file name
+    mainPath = config.get(apsEnv, 'hdfs_path') if 'hdfs_path' in config.options(apsEnv) else None # Where to check for old files on HDFS
     age = config.get(apsEnv, 'age') if 'age' in config.options(apsEnv) else None # Files older than this will be WARNed instead of INFOed; int in seconds
-    mainPath = config.get(apsEnv, 'hdfs_path') if 'hdfs_path' in config.options(apsEnv) else None
+    deletePendingAge = config.get(apsEnv, 'delete_pending_age') if 'delete_pending_age' in config.options(apsEnv) else None # Files and folders in pending fodler older than this will be deleted from HDFS; int in seconds
+    deleteRejectAge = config.get(apsEnv, 'delete_reject_age') if 'delete_reject_age' in config.options(apsEnv) else None # Files and folders in reject folder older than this will be deleted from HDFS; int in seconds
 else:
     tmpLog.error('Configuration file not found')
+    sys.exit(2)
+
+if None in [debugLevel, logFile, age, mainPath, deletePendingAge, deleteRejectAge]:
+    tmpLog.error('Missing required configuration options')
     sys.exit(2)
 
 # Set logging
@@ -94,22 +102,40 @@ folders = subprocess.run(f"hdfs dfs -ls -R {mainPath} | grep '^d' | grep -e '/pe
 ansInp = folders.stdout.decode('utf-8').strip()
 
 # Checks if the files are older than the age variable and logs them
-def main(line, age=age):
+def main(line, age=age, deletePendingAge=deletePendingAge, deleteRejectAge=deleteRejectAge):
     logger.debug(f'Checking {line}')
     lines = line.strip().split(' ')
     timen = f'{lines[-3]} {lines[-2]}'
+    
     logger.debug(f'Parsing time: {timen}')
     try:
         estamp = time.mktime(datetime.strptime(timen, '%Y-%m-%d %H:%M').timetuple())
     except ValueError:
         logger.error(f'Invalid time format found: {timen} in line: {line}')
         return
+    
+    if estamp < time.time() - deletePendingAge and re.search('/pending/', line[-1]):
+        logger.info(f'{lines[-1]} from pending is older than {deletePendingAge} seconds, added to delete list')
+        return [lines[-1]]
+    if estamp < time.time() - deleteRejectAge and re.search('/reject/', lines[-1]):
+        logger.info(f'{lines[-1]} from reject is older than {deleteRejectAge} seconds, added to delete list')
+        return [lines[-1]]
     if estamp > time.time() - age:
         logger.debug(f'Skipping path because its too new: {lines[-1]}')
         return
+
     logger.warn(f'Found old folder: {lines[-1]}')
 
 for line in ansInp.split('\n'):
-    main(line)
+    returned = main(line)
+    if returned is not None:
+        toDel.append(returned)
+
+if len(toDel) > 0:
+    logger.info(f'Found {len(toDel)} old folders, deleting...')
+    # subprocess.run(f"hdfs dfs -rm -r {' '.join(toDel)}", shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    for item in toDel:
+        logger.debug(f'Deleted {item}')
+    logger.info('Delete complete')
 
 logger.info('DONE!')
