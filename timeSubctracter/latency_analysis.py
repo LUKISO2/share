@@ -1,9 +1,10 @@
-# Version 1.0.1
+# Version 1.1.1
 
 from datetime import datetime
 import configparser
 import argparse
 import logging
+import pytz
 import time
 import sys
 import re
@@ -12,6 +13,7 @@ import os
 #Basic Values
 matched = 0
 mainFormat = "%Y%m%d%H%M%S"
+tz = pytz.timezone("Europe/Prague")
 
 #temporaly logging before config
 tmpLog = logging.getLogger(f'Pre_config_log_of___{os.path.basename(__file__)}___')
@@ -145,11 +147,18 @@ for file in os.listdir(inputDir):
 
     #Checks for validity of timestamps
     if estamp > mstamp:
-        logger.error(f'File modification timestamp is older than filename timestamp in: {file}')
-        sys.exit(2)
+        today = datetime.now()
+        if datetime(today.year, today.month, today.day, 1) in tz._utc_transition_times:
+            mstamp += 3600
+            if estamp > mstamp:
+                logger.error(f'Filename timestamp ({fstamp[0]}) is older than file modification timestamp ({datetime.fromtimestamp(mstamp).strftime(mainFormat)}) in: {file}')
+                sys.exit(2)
+        else:
+            logger.error(f'Filename timestamp ({fstamp[0]}) is older than file modification timestamp ({datetime.fromtimestamp(mstamp).strftime(mainFormat)}) in: {file}')
+            sys.exit(2)
 
     difference = round(mstamp - estamp)
-    logger.info(f'File modification timestamp is {difference} seconds older than filename timestamp in: {file}')
+    logger.info(f'File modification timestamp ({datetime.fromtimestamp(mstamp).strftime(mainFormat)}) is {difference} seconds older than filename timestamp ({fstamp[0]}) in: {file}')
 
     #Appends timestamp to filename
     with open(outputFile, 'a') as f:
