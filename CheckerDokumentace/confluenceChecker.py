@@ -108,8 +108,8 @@ if not outCsv:
 
 if tmpPath == '':
     tmpPath = os.getcwd()
-
-sys.exit()
+else:
+    tmpPath = os.path.normpath(tmpPath)
 
 def removeTree(tree):
     try:
