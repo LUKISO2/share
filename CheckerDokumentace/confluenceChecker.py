@@ -12,7 +12,7 @@ import os
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Hand changable variables
-version = '0.0.1'
+version = '1.0.0'
 
 #temporaly logging before config
 formater = logging.Formatter('%(asctime)s %(name)s$ [%(thread)d] %(levelname)s %(message)s')
