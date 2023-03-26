@@ -14,7 +14,7 @@ import os
 # Config file example, reffer to "Read configuration" section for more info:
 # [TEST]
 # debug_level = DEBUG
-# path_to_archive = C:/Users/xxx/xxx/config-main.zip
+# path_to_configs = C:/Users/xxx/xxx/config-main.zip
 # output_csv = C:/Users/xxx/xxx/output.csv
 # temp_folder_location =
 # username = xxx
@@ -24,7 +24,7 @@ import os
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Hand changable variables
-version = '1.0.0'
+version = '1.1.0'
 
 #temporaly logging before config
 formater = logging.Formatter('%(asctime)s %(name)s$ [%(thread)d] %(levelname)s %(message)s')
@@ -54,7 +54,7 @@ if os.path.isfile(os.path.join(confRoot, config_file)):
     config = configparser.ConfigParser()
     config.read(os.path.join(confRoot, config_file))
     debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else 'DEBUG' # What level of messages will get logged (DEBUG-CRITICAL)
-    zipFileRaw = config.get(apsEnv, 'path_to_archive') if 'path_to_archive' in config.options(apsEnv) else None # Exact path to archive containning configs
+    zipFileRaw = config.get(apsEnv, 'path_to_configs') if 'path_to_configs' in config.options(apsEnv) else None # Exact path to archive or folder containing configs
     outCsv = config.get(apsEnv, 'output_csv') if 'output_csv' in config.options(apsEnv) else None # Output path including xxx.csv into which the output will be written
     tmpPath = config.get(apsEnv, 'temp_folder_location') if 'temp_folder_location' in config.options(apsEnv) else None # Path whete temporary files should be written, can be left empty for cwd
     username = config.get(apsEnv, 'username') if 'username' in config.options(apsEnv) else None # Intranet username (Used to authenticate to get results)
@@ -105,9 +105,16 @@ else:
     zipPath = os.path.normpath(os.path.expandvars(zipFileRaw))
     zipFile = os.path.basename(zipPath)
 
+skipUnpack = False
 if not os.path.isfile(zipPath):
-    logger.error('Archive not found')
-    sys.exit(2)
+    logger.error('Archive not found, checking for existance')
+    if not os.path.exists(zipPath):
+        logger.error('Path does not exist')
+        sys.exit(2)
+
+    logger.info('Path exists, assuming unpacked folder')
+    unpackFolder = zipPath
+    skipUnpack = True
 
 if not username:
     logger.error('Username is not set')
@@ -145,23 +152,24 @@ try:
     temps = os.path.join(tmpPath, 'temp')
     createFolder(temps)
 
-    tmpFolderName = f'.tmp_{"".join(zipFile.split(".")[:-1])}'
-    tmpFolder = os.path.join(temps, tmpFolderName)
-    createFolder(tmpFolder)
+    if not skipUnpack:
+        tmpFolderName = f'.tmp_{"".join(zipFile.split(".")[:-1])}'
+        tmpFolder = os.path.join(temps, tmpFolderName)
+        createFolder(tmpFolder)
 
-    # Unpacking archive containing configs
-    try:
-        shutil.unpack_archive(zipPath, tmpFolder)
-    except Exception as e:
-        logger.error(f'Error while unpacking archive: {e}')
-        sys.exit(2)
+        # Unpacking archive containing configs
+        try:
+            shutil.unpack_archive(zipPath, tmpFolder)
+        except Exception as e:
+            logger.error(f'Error while unpacking archive: {e}')
+            sys.exit(2)
+
+        unpackFolder = os.path.join(tmpFolder, 'config-main')
 
     configFolderName = f'tmp_configs'
     configFolder = os.path.join(temps, configFolderName)
     createFolder(configFolder)
-
     # Filtering out configs to separate folder
-    unpackFolder = os.path.join(tmpFolder, 'config-main')
     for root, dirs, files in os.walk(unpackFolder):
         for file in files:
             if file.endswith('.conf'):
@@ -169,8 +177,6 @@ try:
                     shutil.copy(os.path.join(root, file), os.path.join(configFolder, f'{file}___{"".join(os.urandom(4).hex().split(" "))}.conf'))
                 else:
                     shutil.copy(os.path.join(root, file), configFolder)
-
-    removeTree(tmpFolder)
 
     # Reading configs
     class Config:
