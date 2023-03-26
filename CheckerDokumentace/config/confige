@@ -1,7 +1,0 @@
-[TEST]
-debug_level = DEBUG
-path_to_archive = C:/Users/xxx/xxx/config-main.zip
-output_csv = C:/Users/xxx/xxx/output.csv
-temp_folder_location =
-username = xxx
-password = xxx
