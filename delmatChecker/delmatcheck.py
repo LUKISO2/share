@@ -5,6 +5,7 @@ import subprocess
 import pyhocon
 import logging
 import queue
+import json
 import sys
 import re
 import os
@@ -37,11 +38,13 @@ if confRoot is None:
 if os.path.isfile(os.path.join(confRoot, config_file)):
     config = configparser.ConfigParser()
     config.read(os.path.join(confRoot, config_file))
-    debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else None
-    logFile = config.get(apsEnv, 'log_file') if 'log_file' in config.options(apsEnv) else None
+    debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else 'DEBUG'
+    logFile = config.get(apsEnv, 'log_name') if 'log_name' in config.options(apsEnv) else 'delmatChecker'
 else:
     tmpLog.error('Configuration file not found')
     sys.exit(2)
+    
+jsonName = os.path.join(logDir, logFile + '.json')
 
 # Set logging
 class MaxLevelFilter(logging.Filter):
@@ -72,8 +75,8 @@ errHandler.setLevel(logging.ERROR)
 errHandler.setFormatter(formater)
 errHandler.setLevel(max(MIN_LEVEL, logging.ERROR))
 
-rotatingHandler = logging.handlers.TimedRotatingFileHandler(os.path.join(logDir, logFile), when='d', interval=30, backupCount=1)
-rotatingHandler.setLevel(logging.DEBUG)
+rotatingHandler = logging.handlers.TimedRotatingFileHandler(os.path.join(logDir, logFile + '.log'), when='d', interval=30, backupCount=1)
+rotatingHandler.setLevel(MIN_LEVEL)
 rotatingHandler.setFormatter(formater)
 
 logger.addHandler(outHandler)
@@ -160,6 +163,9 @@ for item in os.listdir(os.environ['CONF_ROOT']):
                 continue
             toDo.put(configFile)
 
+allLogs = []
+rex = re.compile('/p_', flags=re.M|re.S)
+
 def main(configFile, delmatExtended=delmatExtended, logger=logger):
     # Loads required variables into env to be used by parser and logging
     debug = []
@@ -202,7 +208,7 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
         answerInp = subprocess.run(['hadoop', 'fs', '-ls', delmatToCheckPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         ansInp = answerInp.stdout.decode('utf-8').strip()
         passedIn = False
-        if not re.search('/p_', ansInp, flags=re.M|re.S):
+        if not rex.search(ansInp):
             debug.append([logging.DEBUG, f'No input p_* folder found on HDFS path: {ansInp}'])
             debug.append([logging.INFO, f'No input p_* folder found on: {delmatToCheckPath}, skipping'])
         else:
@@ -213,6 +219,8 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
                     break
             if not passedIn:
                 debug.append([logging.WARN, f'Input HDFS path {delmatToCheckPath} from {configFile} is not in delmat files, file made by: {author}'])
+                folderSize = subprocess.run(f'hdfs dfs -du {os.path.dirname(delmatToCheckPath)} | grep -e "{delmatToCheckPath}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).split()[0]
+                allLogs.append({'configFile': configFile, 'delmat': delmatToCheckPath, 'type': 'input', 'feedAuthor': author, 'feedFailMail': failMail, 'feedDirection': direction, 'feedSystem': feedSystem, 'feedName': feedName, 'feedVersion': feedVersion, 'folderSize': folderSize})
 
     # Does basically the same as input, but checkes ALL outputs for HDFS and raises error if path not found in DELMAT
     outputs = config.get('output', [])
@@ -226,7 +234,7 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
             debug.append([logging.DEBUG, f'Output HDFS path: {hdfsPath}'])
             answerOut = subprocess.run(['hadoop', 'fs', '-ls', hdfsPath], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             ansOut = answerOut.stdout.decode('utf-8').strip()
-            if not re.search('/p_', ansOut, flags=re.M|re.S):
+            if not re.search(ansOut):
                 debug.append([logging.DEBUG, f'No output p_* folder found on HDFS path: {ansOut}'])
                 debug.append([logging.INFO, 'No output p_* folder found, skipping'])
                 continue
@@ -238,11 +246,17 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
                     break
             if not passedOut:
                 debug.append([logging.WARN, f'Output HDFS path {hdfsPath} from {configFile} is not in delmat files, file made by: {author}'])
+                folderSize = subprocess.run(f'hdfs dfs -du {os.path.dirname(hdfsPath)} | grep -e "{hdfsPath}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).split()[0]
+                allLogs.append({'configFile': configFile, 'delmat': hdfsPath, 'type': 'output', 'feedAuthor': author, 'feedFailMail': failMail, 'feedDirection': direction, 'feedSystem': feedSystem, 'feedName': feedName, 'feedVersion': feedVersion})
 
     for toLog in debug:
         logger.log(toLog[0], toLog[1])
-    
-for item in range(toDo.qsize()):
+        
+while not toDo.empty():
     main(toDo.get())
+
+# Writes all missing delmat files to json file
+with open(jsonName, 'w', encoding='utf-8') as f:
+    json.dump(allLogs, f, indent=4, ensure_ascii=False)
 
 logger.info('DONE!')
