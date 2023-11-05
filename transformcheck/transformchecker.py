@@ -9,8 +9,22 @@ import sys
 import re
 import os
 
+# WHAT THIS SCRIPT DOES AND WHAT IT REQUIRES
+# This script checks the HDFS for old files and folders and deletes them, requires a config file name and apps environment loaded
+# Example of a config file:
+#
+# [TEST]
+# debug_level = DEBUG <- (NOT required, default: INFO)
+# log_file = transformchecker <- (NOT required, default: transformchecker)
+# hdfs_path = /user/aps/transform
+# age = 86400
+# delete_pending_age = 86400
+# delete_reject_age = 86400
+#
+# details of the config file below...
+
 # Hand changable variables
-version = '2.1.1'
+version = '2.1.2'
 unsortedFinalPaths = []
 finalPaths = []
 pathway = []
@@ -39,7 +53,7 @@ if os.path.isfile(os.path.join(confRoot, config_file)):
     config = configparser.ConfigParser()
     config.read(os.path.join(confRoot, config_file))
     debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else None # Can be [debug, info, warning, error, critical]
-    logFile = config.get(apsEnv, 'log_file') if 'log_file' in config.options(apsEnv) else None # Should be only a file name
+    logFile = config.get(apsEnv, 'log_file') if 'log_file' in config.options(apsEnv) else 'transformchecker' # Should be only a file name (NO EXTENSION!)
     mainPath = config.get(apsEnv, 'hdfs_path') if 'hdfs_path' in config.options(apsEnv) else None # Where to check for old files on HDFS
     age = config.get(apsEnv, 'age') if 'age' in config.options(apsEnv) else None # Files older than this will be WARNed instead of INFOed; int in seconds
     deletePendingAge = config.get(apsEnv, 'delete_pending_age') if 'delete_pending_age' in config.options(apsEnv) else None # Files and folders in pending fodler older than this will be deleted from HDFS; int in seconds
