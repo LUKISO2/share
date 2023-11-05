@@ -10,14 +10,26 @@ import sys
 import re
 import os
 
+# WHAT THIS SCRIPT DOES AND WHAT IT REQUIRES
+# It requires a config file name as a argument and delmat environment variables to be set
+# Example of a config file:
+#
+# [TEST]
+# debug_level = DEBUG <- (NOT required, default: INFO)
+# log_name = delmatChecker <- (NOT required, default: delmatChecker)
+# json_name = delmatChecker.json <- (NOT required, default: delmatChecker.json)
+# path_hdfs = /user/ingest/delmatChecker <- (NOT required, default: None)
+#
+# details of the config file below...
+
 # Hand changable variables
-version = '1.2.3'
+version = '1.3.0'
 delmatExtended = []
 toDo = queue.Queue()
 
 #temporaly logging before config
 formater = logging.Formatter('%(asctime)s %(name)s$ [%(thread)d] %(levelname)s %(message)s')
-tmpLog = logging.getLogger('Pre_config_log_of___%s___' % os.path.basename(__file__))
+tmpLog = logging.getLogger(f'Pre_config_log_of___{os.path.basename(__file__)}___')
 tmpLogHnd = logging.StreamHandler(sys.stderr)
 tmpLogHnd.setLevel(logging.ERROR)
 tmpLogHnd.setFormatter(formater)
@@ -38,13 +50,21 @@ if confRoot is None:
 if os.path.isfile(os.path.join(confRoot, config_file)):
     config = configparser.ConfigParser()
     config.read(os.path.join(confRoot, config_file))
-    debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else 'DEBUG'
-    logFile = config.get(apsEnv, 'log_name') if 'log_name' in config.options(apsEnv) else 'delmatChecker'
+    debugLevel = config.get(apsEnv, 'debug_level') if 'debug_level' in config.options(apsEnv) else 'INFO' # Debug level (DEBUG -> CRITICAL)
+    logFile = config.get(apsEnv, 'log_name') if 'log_name' in config.options(apsEnv) else 'delmatChecker' # Log file name (NO EXTENSION!)
+    jsonFile = config.get(apsEnv, 'json_name') if 'json_name' in config.options(apsEnv) else None # Json name if different or absolute path to file to write to (does not need to exist)
+    pathHdfs = config.get(apsEnv, 'path_hdfs') if 'path_hdfs' in config.options(apsEnv) else None # HDFS path to copy json file to
 else:
     tmpLog.error('Configuration file not found')
     sys.exit(2)
-    
-jsonName = os.path.join(logDir, logFile + '.json')
+
+# Json file name handling
+if not jsonFile:
+    jsonFile = os.path.join(logDir, logFile + '.json')
+elif not jsonFile.endswith('.json'):
+    jsonFile = jsonFile + '.json'
+elif not os.path.isabs(jsonFile):
+    jsonFile = os.path.join(logDir, jsonFile)
 
 # Set logging
 class MaxLevelFilter(logging.Filter):
@@ -246,7 +266,7 @@ def main(configFile, delmatExtended=delmatExtended, logger=logger):
                     break
             if not passedOut:
                 debug.append([logging.WARN, f'Output HDFS path {hdfsPath} from {configFile} is not in delmat files, file made by: {author}'])
-                folderSize = subprocess.run(f'hdfs dfs -du {os.path.dirname(hdfsPath)} | grep -e "{hdfsPath}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).split()[0]
+                folderSize = subprocess.run(f'hdfs dfs -du {os.path.dirname(hdfsPath)} | grep -e "{hdfsPath}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).strip().split()[0]
                 allLogs.append({'configFile': configFile, 'delmat': hdfsPath, 'type': 'output', 'feedAuthor': author, 'feedFailMail': failMail, 'feedDirection': direction, 'feedSystem': feedSystem, 'feedName': feedName, 'feedVersion': feedVersion})
 
     for toLog in debug:
@@ -256,7 +276,13 @@ while not toDo.empty():
     main(toDo.get())
 
 # Writes all missing delmat files to json file
-with open(jsonName, 'w', encoding='utf-8') as f:
+with open(jsonFile, 'w', encoding='utf-8') as f:
     json.dump(allLogs, f, indent=4, ensure_ascii=False)
+
+# Copy json file to HDFS if hdfs path is set
+if pathHdfs:
+    logger.info(f'Copying {jsonFile} to HDFS')
+    subprocess.run(['hdfs', 'dfs', '-put', jsonFile, pathHdfs], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    logger.info(f'Copied {jsonFile} to HDFS')
 
 logger.info('DONE!')
