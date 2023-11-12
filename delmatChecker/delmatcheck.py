@@ -283,6 +283,7 @@ with open(jsonFile, 'w', encoding='utf-8') as f:
 if pathHdfs:
     logger.info(f'Copying {jsonFile} to HDFS')
     subprocess.run(['hdfs', 'dfs', '-put', jsonFile, pathHdfs], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    logger.info(f'Copied {jsonFile} to HDFS')
+    logger.info(f'Copied {jsonFile} to HDFS, deleting local copy')
+    os.remove(jsonFile)
 
 logger.info('DONE!')
